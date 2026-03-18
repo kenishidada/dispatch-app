@@ -3,6 +3,7 @@
 import { MapContainer, TileLayer } from "react-leaflet";
 import { useDeliveryStore } from "@/shared/store/deliveryStore";
 import { DeliveryPin } from "./DeliveryPin";
+import { MapInteractionHandler } from "../hooks/useMapInteraction";
 import "leaflet/dist/leaflet.css";
 
 export function DeliveryMap() {
@@ -34,6 +35,7 @@ export function DeliveryMap() {
       {filteredDeliveries.map((delivery) => (
         <DeliveryPin key={delivery.id} delivery={delivery} />
       ))}
+      <MapInteractionHandler />
     </MapContainer>
   );
 }

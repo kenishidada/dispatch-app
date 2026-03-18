@@ -4,6 +4,10 @@ import dynamic from "next/dynamic";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { useDeliveryStore } from "@/shared/store/deliveryStore";
+import { PinDetailPanel } from "@/features/map/components/PinDetailPanel";
+import { DeliveryListPanel } from "@/features/map/components/DeliveryListPanel";
+import { GeocodingErrorList } from "@/features/map/components/GeocodingErrorList";
+import { DriverFilterBar } from "@/features/assignment/components/DriverFilterBar";
 
 const DeliveryMap = dynamic(
   () => import("@/features/map/components/DeliveryMap").then((m) => ({ default: m.DeliveryMap })),
@@ -45,15 +49,16 @@ export default function MapPage() {
         <div className="flex-1">
           <DeliveryMap />
         </div>
-        <div className="w-80 border-l bg-white overflow-y-auto">
-          <div className="p-4 text-sm text-gray-500">
-            ピンをクリックすると詳細が表示されます
-          </div>
+        <div className="w-80 border-l bg-white overflow-y-auto flex flex-col">
+          <DriverFilterBar />
+          <PinDetailPanel />
+          <DeliveryListPanel />
         </div>
       </div>
 
       <footer className="px-4 py-2 bg-white border-t text-sm text-gray-600">
-        全{deliveries.length}件 / 未割当{deliveries.filter((d) => !d.driverName).length}件 / 未配{deliveries.filter((d) => d.isUndelivered).length}件
+        <div>全{deliveries.length}件 / 未割当{deliveries.filter((d) => !d.driverName).length}件 / 未配{deliveries.filter((d) => d.isUndelivered).length}件</div>
+        <GeocodingErrorList />
       </footer>
     </div>
   );
