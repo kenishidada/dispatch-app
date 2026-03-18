@@ -6,11 +6,13 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useDeliveryStore } from "@/shared/store/deliveryStore";
 import { parseExcelFile } from "../hooks/useExcelParser";
+import { useAutoAssign } from "@/features/assignment/hooks/useAutoAssign";
 
 export function UploadDropzone() {
   const router = useRouter();
   const { mergeDeliveries, setProcessing, clearProcessing, isProcessing, processingStep } =
     useDeliveryStore();
+  const { processAll } = useAutoAssign();
   const [error, setError] = useState<string | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
 
@@ -33,14 +35,11 @@ export function UploadDropzone() {
       }
 
       mergeDeliveries(result.deliveries);
-      setProcessing("完了！地図画面に移動します...");
-
-      setTimeout(() => {
-        clearProcessing();
-        router.push("/map");
-      }, 1000);
+      const allDeliveries = useDeliveryStore.getState().deliveries;
+      await processAll(allDeliveries);
+      router.push("/map");
     },
-    [mergeDeliveries, setProcessing, clearProcessing, router]
+    [mergeDeliveries, setProcessing, clearProcessing, router, processAll]
   );
 
   const handleDrop = useCallback(
