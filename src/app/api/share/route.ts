@@ -13,6 +13,16 @@ function cleanup() {
 export async function POST(request: NextRequest) {
   cleanup();
   const body = await request.json();
+  const bodyText = JSON.stringify(body);
+  if (bodyText.length > 5 * 1024 * 1024) {
+    return NextResponse.json({ error: "Data too large" }, { status: 413 });
+  }
+  if (shareStore.size >= 100) {
+    cleanup();
+    if (shareStore.size >= 100) {
+      return NextResponse.json({ error: "Too many active sessions" }, { status: 429 });
+    }
+  }
   const sessionId = uuidv4();
   shareStore.set(sessionId, { data: body, createdAt: Date.now() });
   return NextResponse.json({ sessionId });

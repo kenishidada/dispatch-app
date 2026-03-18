@@ -17,7 +17,7 @@ export function DeliveryMap() {
   });
 
   const center: [number, number] =
-    filteredDeliveries.length > 0 && filteredDeliveries[0].lat && filteredDeliveries[0].lng
+    filteredDeliveries.length > 0 && filteredDeliveries[0].lat != null && filteredDeliveries[0].lng != null
       ? [filteredDeliveries[0].lat, filteredDeliveries[0].lng]
       : [35.4, 139.5];
 

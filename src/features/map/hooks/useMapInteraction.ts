@@ -12,7 +12,7 @@ export function MapInteractionHandler() {
   useEffect(() => {
     if (!selectedId) return;
     const delivery = deliveries.find((d) => d.id === selectedId);
-    if (delivery?.lat && delivery?.lng) {
+    if (delivery?.lat != null && delivery?.lng != null) {
       map.flyTo([delivery.lat, delivery.lng], 14, { duration: 0.5 });
     }
   }, [selectedId, deliveries, map]);

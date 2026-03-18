@@ -32,6 +32,14 @@ export function parseExcelFile(file: File): Promise<ParseResult> {
         }
 
         const worksheet = workbook.Sheets[sheetName];
+
+        // Validate headers
+        const headerRow = XLSX.utils.sheet_to_json<string[]>(worksheet, { header: 1, range: "A1:Q1" });
+        if (!headerRow[0] || headerRow[0].length < 17) {
+          resolve({ success: false, error: "Excelの列構造が想定と異なります。17列のデータが必要です。" });
+          return;
+        }
+
         const jsonData = XLSX.utils.sheet_to_json<Record<string, unknown>>(worksheet, {
           header: EXPECTED_HEADERS,
           range: 1,

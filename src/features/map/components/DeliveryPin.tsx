@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo } from "react";
 import { Marker, Popup } from "react-leaflet";
 import L from "leaflet";
 import { Delivery } from "@/shared/types/delivery";
@@ -33,7 +34,7 @@ export function DeliveryPin({ delivery }: Props) {
 
   const color = delivery.colorCode || "#9CA3AF";
   const isLarge = delivery.volume >= 1000;
-  const icon = createPinIcon(color, isLarge);
+  const icon = useMemo(() => createPinIcon(color, isLarge), [color, isLarge]);
 
   return (
     <Marker
