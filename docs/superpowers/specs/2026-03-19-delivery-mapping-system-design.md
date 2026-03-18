@@ -36,10 +36,10 @@
   └─ ドライバー参照ビュー（読み取り専用）
 
 [Next.js API Routes]
-  ├─ /api/upload     … Excel解析 → 配送データ抽出
   ├─ /api/geocode    … 住所 → 緯度経度変換（国土地理院API）
   ├─ /api/assign     … Gemini Flashで地域割り自動振り分け
-  └─ /api/pdf        … PDF生成
+  ├─ /api/pdf        … PDF生成（クライアントサイドで実行、フォールバック用）
+  └─ /api/share      … 配送データをサーバーメモリに一時保存 → sessionId返却
 
 [外部サービス]
   ├─ 国土地理院 geocoding API（無料）
@@ -57,7 +57,8 @@ src/
 │   ├── api/
 │   │   ├── geocode/route.ts
 │   │   ├── assign/route.ts
-│   │   └── pdf/route.ts
+│   │   ├── pdf/route.ts
+│   │   └── share/route.ts             … 共有データの保存・取得
 │   └── (routes)/
 │       ├── upload/page.tsx
 │       ├── map/page.tsx
@@ -152,6 +153,39 @@ type AreaRule = {
 }
 ```
 
+## Zustand Store設計
+
+```typescript
+type DeliveryStore = {
+  // State
+  deliveries: Delivery[]
+  drivers: Driver[]
+  areaRules: AreaRule[]
+  selectedDeliveryId: string | null
+  driverFilter: string | null       // null = 全員表示
+  isProcessing: boolean
+  processingStep: string             // "Excel解析中..." 等
+
+  // Actions
+  setDeliveries: (deliveries: Delivery[]) => void
+  mergeDeliveries: (newData: Delivery[]) => void  // 未配データ保持マージ
+  updateDelivery: (id: string, updates: Partial<Delivery>) => void
+  updateDriverAssignment: (id: string, driverName: string) => void
+  toggleUndelivered: (id: string) => void
+  setMemo: (id: string, memo: string) => void
+  setDrivers: (drivers: Driver[]) => void
+  setAreaRules: (rules: AreaRule[]) => void
+  selectDelivery: (id: string | null) => void
+  setDriverFilter: (driverName: string | null) => void
+  setProcessing: (step: string) => void
+  clearProcessing: () => void
+}
+```
+
+**永続化**:
+- `drivers` と `areaRules` は `localStorage` に保存し、アプリ起動時に自動復元（zustand/middleware persist）
+- `deliveries` はセッション中のみ保持（リロードで消える前提）
+
 ## 画面設計
 
 ### 1. アップロード画面
@@ -216,13 +250,17 @@ type AreaRule = {
 
 - 共有リンクで開ける読み取り専用の地図画面
 - 自分の担当分のみフィルタ表示
-- プロトタイプではsessionIdベースのURLパラメータで実現（認証なし）
+- データ共有方式: 管理者が「共有リンク生成」→ `/api/share` にPOSTで配送データをサーバーメモリに一時保存 → sessionIdを含むURLを生成
+- ドライバーは `/view/[sessionId]` を開くと `/api/share?id=xxx` からデータを取得して表示
+- サーバーメモリ保存のため、Vercelデプロイ時はサーバーレス関数の再起動で消える前提（プロトタイプ許容範囲）
+- 認証なし
 
 ## 主要ロジック
 
 ### Excel解析
-- `xlsx`ライブラリでSheet1のRow2以降を読み取り `Delivery[]`に変換
+- クライアントサイドで `xlsx` ライブラリを使用してSheet1のRow2以降を読み取り `Delivery[]`に変換
 - 列マッピング: A=工場名, B=運送業者コード, C=運送業者名, D=届先コード, E=届先名, F=個口数, G=数量, H=甲数, I=アソート数量, J=実重量, K=容積, L=住所コード, M=届先住所, N=納品日, O=伝票番号, P=出荷番号, Q=運送区分
+- エラーハンドリング: ファイル形式不正（非Excel）、Sheet1不在、列構造不一致、データ行0件の場合はエラーメッセージを表示しアップロード画面に留まる
 
 ### 再アップロード時の未配データマージ
 - アップロード時、既存データで `isUndelivered === true` のものを保持
@@ -231,11 +269,17 @@ type AreaRule = {
 ### ジオコーディング
 - 住所を国土地理院APIに送信して緯度経度を取得
 - 同一住所（addressCode基準）はキャッシュして重複リクエスト防止
+- 最大同時リクエスト数: 5（並列制御）、失敗時は2回リトライ（指数バックオフ）
 - 変換失敗データは `geocodeStatus: 'failed'` にセットし、画面下部にリスト表示
+- 目安処理時間: 100件で約20秒（キャッシュなし時）
 
 ### 自動振り分け（Gemini Flash）
 - 住所リスト + エリアルール + 容積情報をプロンプトに含めてGemini Flashに送信
-- JSON形式での応答を強制
+- JSON形式での応答を強制（responseSchema指定）
+- 期待レスポンス: `{ "assignments": [{ "deliveryId": string, "driverName": string, "reason": string }] }`
+- バリデーション: 返却されたdriverNameが登録済みドライバーリストに存在するか検証。未知の名前は「未割当」にフォールバック
+- JSON解析失敗時: 全件「未割当」にセットし、手動割り当てを促すメッセージを表示
+- 大量データ対応: 100件を超える場合はバッチ分割して送信
 - 容積 >= 1,000L → 2tトラック担当ドライバーに限定
 - 容積 < 1,000L → 軽トラック担当ドライバーに限定
 
