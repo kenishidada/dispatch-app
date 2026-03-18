@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -8,6 +9,7 @@ import { PinDetailPanel } from "@/features/map/components/PinDetailPanel";
 import { DeliveryListPanel } from "@/features/map/components/DeliveryListPanel";
 import { GeocodingErrorList } from "@/features/map/components/GeocodingErrorList";
 import { DriverFilterBar } from "@/features/assignment/components/DriverFilterBar";
+import { usePdfGenerate } from "@/features/pdf/hooks/usePdfGenerate";
 
 const DeliveryMap = dynamic(
   () => import("@/features/map/components/DeliveryMap").then((m) => ({ default: m.DeliveryMap })),
@@ -16,6 +18,21 @@ const DeliveryMap = dynamic(
 
 export default function MapPage() {
   const deliveries = useDeliveryStore((s) => s.deliveries);
+  const { generatePdf } = usePdfGenerate();
+  const [shareUrl, setShareUrl] = useState<string | null>(null);
+
+  const handleShare = async () => {
+    const res = await fetch("/api/share", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ deliveries, drivers: useDeliveryStore.getState().drivers }),
+    });
+    const data = await res.json();
+    const url = `${window.location.origin}/view/${data.sessionId}`;
+    await navigator.clipboard.writeText(url);
+    setShareUrl(url);
+    setTimeout(() => setShareUrl(null), 3000);
+  };
 
   if (deliveries.length === 0) {
     return (
@@ -41,7 +58,8 @@ export default function MapPage() {
           <Link href="/settings">
             <Button variant="outline" size="sm">設定</Button>
           </Link>
-          <Button size="sm" id="pdf-download-btn">PDF出力</Button>
+          <Button variant="outline" size="sm" onClick={handleShare}>{shareUrl ? "コピーしました!" : "共有リンク生成"}</Button>
+          <Button size="sm" onClick={generatePdf}>PDF出力</Button>
         </div>
       </header>
 
