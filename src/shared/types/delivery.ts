@@ -25,6 +25,7 @@ export type Delivery = {
   colorCode: string | null;
   isUndelivered: boolean;
   memo: string;
+  assignReason: string;
   geocodeStatus: GeoCodeStatus;
 };
 

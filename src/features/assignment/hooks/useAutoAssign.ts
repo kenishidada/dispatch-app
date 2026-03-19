@@ -54,16 +54,16 @@ export function useAutoAssign() {
         body: JSON.stringify({ deliveries: unassigned, drivers, areaRules }),
       });
       const data = await res.json();
-      const assignMap = new Map<string, string>();
+      const assignMap = new Map<string, { driverName: string; reason: string }>();
       for (const a of data.assignments) {
-        if (a.driverName) assignMap.set(a.deliveryId, a.driverName);
+        if (a.driverName) assignMap.set(a.deliveryId, { driverName: a.driverName, reason: a.reason || "" });
       }
 
       return items.map((d) => {
-        const assigned = assignMap.get(d.id);
-        if (assigned) {
-          const driver = drivers.find((dr) => dr.name === assigned);
-          return { ...d, driverName: assigned, colorCode: driver?.color ?? null };
+        const assignment = assignMap.get(d.id);
+        if (assignment) {
+          const driver = drivers.find((dr) => dr.name === assignment.driverName);
+          return { ...d, driverName: assignment.driverName, colorCode: driver?.color ?? null, assignReason: assignment.reason };
         }
         return d;
       });

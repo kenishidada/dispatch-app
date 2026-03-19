@@ -11,6 +11,7 @@ export function DriverFilterBar() {
 
   const assignedDrivers = [...new Set(deliveries.map((d) => d.driverName).filter(Boolean))];
   const activeDrivers = drivers.filter((d) => assignedDrivers.includes(d.name));
+  const unassignedCount = deliveries.filter((d) => !d.driverName).length;
 
   return (
     <div className="p-3 space-y-2 border-b">
@@ -41,6 +42,20 @@ export function DriverFilterBar() {
             {driver.name}
           </Button>
         ))}
+        <Button
+          size="sm"
+          variant={driverFilter === "__unassigned__" ? "default" : "outline"}
+          className="text-xs h-7"
+          onClick={() =>
+            setDriverFilter(driverFilter === "__unassigned__" ? null : "__unassigned__")
+          }
+        >
+          <span
+            className="inline-block w-2.5 h-2.5 rounded-full mr-1"
+            style={{ backgroundColor: "#9CA3AF" }}
+          />
+          未割当（{unassignedCount}）
+        </Button>
       </div>
     </div>
   );

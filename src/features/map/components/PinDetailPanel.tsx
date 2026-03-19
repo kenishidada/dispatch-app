@@ -73,6 +73,9 @@ export function PinDetailPanel() {
             ))}
           </SelectContent>
         </Select>
+        {delivery.assignReason && (
+          <p className="text-xs text-gray-400 mt-1">{delivery.assignReason}</p>
+        )}
       </div>
 
       <div className="flex items-center justify-between">

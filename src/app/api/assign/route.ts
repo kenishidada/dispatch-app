@@ -15,5 +15,8 @@ export async function POST(request: NextRequest) {
   }
 
   const assignments = await autoAssign(deliveries, drivers, areaRules || []);
+  console.log("[assign] drivers received:", drivers.map(d => d.name));
+  console.log("[assign] sample assignments:", assignments.slice(0, 3));
+  console.log("[assign] assigned count:", assignments.filter(a => a.driverName).length, "/", assignments.length);
   return NextResponse.json({ assignments });
 }

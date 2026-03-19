@@ -9,6 +9,7 @@ import { PinDetailPanel } from "@/features/map/components/PinDetailPanel";
 import { DeliveryListPanel } from "@/features/map/components/DeliveryListPanel";
 import { GeocodingErrorList } from "@/features/map/components/GeocodingErrorList";
 import { DriverFilterBar } from "@/features/assignment/components/DriverFilterBar";
+import { DriverSummary } from "@/features/assignment/components/DriverSummary";
 import { usePdfGenerate } from "@/features/pdf/hooks/usePdfGenerate";
 
 const DeliveryMap = dynamic(
@@ -69,6 +70,7 @@ export default function MapPage() {
         </div>
         <div className="w-80 border-l bg-white overflow-y-auto flex flex-col">
           <DriverFilterBar />
+          <DriverSummary />
           <PinDetailPanel />
           <DeliveryListPanel />
         </div>

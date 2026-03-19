@@ -7,6 +7,7 @@ type DeliveryStore = {
   drivers: Driver[];
   areaRules: AreaRule[];
   selectedDeliveryId: string | null;
+  selectedDeliveryIds: Set<string>;
   driverFilter: string | null;
   isProcessing: boolean;
   processingStep: string;
@@ -23,6 +24,10 @@ type DeliveryStore = {
   setDriverFilter: (driverName: string | null) => void;
   setProcessing: (step: string) => void;
   clearProcessing: () => void;
+  toggleSelectDelivery: (id: string) => void;
+  selectAllVisible: (ids: string[]) => void;
+  clearSelection: () => void;
+  bulkAssignDriver: (ids: string[], driverName: string) => void;
 };
 
 export const useDeliveryStore = create<DeliveryStore>()(
@@ -32,6 +37,7 @@ export const useDeliveryStore = create<DeliveryStore>()(
       drivers: DEFAULT_DRIVERS,
       areaRules: [],
       selectedDeliveryId: null,
+      selectedDeliveryIds: new Set<string>(),
       driverFilter: null,
       isProcessing: false,
       processingStep: "",
@@ -86,6 +92,37 @@ export const useDeliveryStore = create<DeliveryStore>()(
       setDriverFilter: (driverName) => set({ driverFilter: driverName }),
       setProcessing: (step) => set({ isProcessing: true, processingStep: step }),
       clearProcessing: () => set({ isProcessing: false, processingStep: "" }),
+
+      toggleSelectDelivery: (id) => {
+        const current = new Set(get().selectedDeliveryIds);
+        if (current.has(id)) {
+          current.delete(id);
+        } else {
+          current.add(id);
+        }
+        set({ selectedDeliveryIds: current });
+      },
+
+      selectAllVisible: (ids) => {
+        set({ selectedDeliveryIds: new Set(ids) });
+      },
+
+      clearSelection: () => {
+        set({ selectedDeliveryIds: new Set<string>() });
+      },
+
+      bulkAssignDriver: (ids, driverName) => {
+        const driver = get().drivers.find((d) => d.name === driverName);
+        const idSet = new Set(ids);
+        set({
+          deliveries: get().deliveries.map((d) =>
+            idSet.has(d.id)
+              ? { ...d, driverName, colorCode: driver?.color ?? null }
+              : d
+          ),
+          selectedDeliveryIds: new Set<string>(),
+        });
+      },
     }),
     {
       name: "delivery-store",

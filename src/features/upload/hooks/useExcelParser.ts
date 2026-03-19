@@ -75,6 +75,7 @@ export function parseExcelFile(file: File): Promise<ParseResult> {
           colorCode: null,
           isUndelivered: false,
           memo: "",
+          assignReason: "",
           geocodeStatus: "pending",
         }));
 
