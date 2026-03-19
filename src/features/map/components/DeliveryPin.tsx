@@ -7,19 +7,17 @@ import { Delivery } from "@/shared/types/delivery";
 import { useDeliveryStore } from "@/shared/store/deliveryStore";
 
 function createPinIcon(color: string, isLarge: boolean): L.DivIcon {
-  const size = isLarge ? 20 : 14;
+  const w = isLarge ? 24 : 18;
+  const h = isLarge ? 32 : 24;
   return L.divIcon({
     className: "custom-pin",
-    html: `<div style="
-      width: ${size}px;
-      height: ${size}px;
-      background-color: ${color};
-      border: 2px solid white;
-      border-radius: 50%;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.3);
-    "></div>`,
-    iconSize: [size, size],
-    iconAnchor: [size / 2, size / 2],
+    html: `<svg width="${w}" height="${h}" viewBox="0 0 24 32" xmlns="http://www.w3.org/2000/svg">
+      <path d="M12 0C5.4 0 0 5.4 0 12c0 9 12 20 12 20s12-11 12-20C24 5.4 18.6 0 12 0z" fill="${color}" stroke="white" stroke-width="1.5"/>
+      <circle cx="12" cy="11" r="4.5" fill="white" opacity="0.9"/>
+    </svg>`,
+    iconSize: [w, h],
+    iconAnchor: [w / 2, h],
+    popupAnchor: [0, -h],
   });
 }
 

@@ -42,10 +42,10 @@ export type AreaRule = {
 };
 
 export const DEFAULT_DRIVERS: Driver[] = [
-  { name: "ドライバー1", color: "#FF6B6B", vehicleType: "light" },
-  { name: "ドライバー2", color: "#4ECDC4", vehicleType: "light" },
-  { name: "ドライバー3", color: "#45B7D1", vehicleType: "light" },
-  { name: "ドライバー4", color: "#96CEB4", vehicleType: "light" },
-  { name: "2tドライバーA", color: "#FF8C42", vehicleType: "2t" },
-  { name: "2tドライバーB", color: "#6C5CE7", vehicleType: "2t" },
+  { name: "コース1（軽）", color: "#34A853", vehicleType: "light" },  // 緑（Google緑）
+  { name: "コース2（軽）", color: "#4285F4", vehicleType: "light" },  // 青（Google青）
+  { name: "コース3（軽）", color: "#F9AB00", vehicleType: "light" },  // 黄（Google黄）
+  { name: "コース4（軽）", color: "#FF6D01", vehicleType: "light" },  // オレンジ
+  { name: "2t-右", color: "#EA4335", vehicleType: "2t" },             // 赤（Google赤）
+  { name: "2t-左", color: "#A142F4", vehicleType: "2t" },             // 紫
 ];
