@@ -29,8 +29,8 @@ export function SharedMap({ deliveries, drivers }: Props) {
   return (
     <MapContainer center={center} zoom={11} className="h-full w-full" style={{ minHeight: "500px" }}>
       <TileLayer
-        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/">CARTO</a>'
+        url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
       />
       {plotted.map((d) => {
         const color = d.colorCode || "#9CA3AF";
