@@ -93,12 +93,28 @@ export async function autoAssign(
       if (!jsonMatch) throw new Error("No JSON found in response");
 
       const parsed = JSON.parse(jsonMatch[0]);
+      const driverNameArray = Array.from(validDriverNames);
       const assignments: AssignmentResult[] = parsed.assignments.map(
-        (a: AssignmentResult) => ({
-          deliveryId: a.deliveryId,
-          driverName: validDriverNames.has(a.driverName) ? a.driverName : "",
-          reason: a.reason || "",
-        })
+        (a: AssignmentResult) => {
+          let matched = "";
+          if (validDriverNames.has(a.driverName)) {
+            matched = a.driverName;
+          } else {
+            // 部分一致: Geminiが「コース1」と返しても「コース1（軽）」にマッチ
+            const found = driverNameArray.find(
+              (name) => name.includes(a.driverName) || a.driverName.includes(name)
+            );
+            if (found) matched = found;
+          }
+          if (!matched) {
+            console.warn(`[gemini] Unknown driver name: "${a.driverName}"`);
+          }
+          return {
+            deliveryId: a.deliveryId,
+            driverName: matched,
+            reason: a.reason || "",
+          };
+        }
       );
       allAssignments.push(...assignments);
     } catch (error) {
