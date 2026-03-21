@@ -6,6 +6,8 @@ type DeliveryStore = {
   deliveries: Delivery[];
   drivers: Driver[];
   areaRules: AreaRule[];
+  areaImage: string | null;
+  areaDescription: string;
   selectedDeliveryId: string | null;
   selectedDeliveryIds: Set<string>;
   driverFilter: string | null;
@@ -20,6 +22,8 @@ type DeliveryStore = {
   setMemo: (id: string, memo: string) => void;
   setDrivers: (drivers: Driver[]) => void;
   setAreaRules: (rules: AreaRule[]) => void;
+  setAreaImage: (image: string | null) => void;
+  setAreaDescription: (desc: string) => void;
   selectDelivery: (id: string | null) => void;
   setDriverFilter: (driverName: string | null) => void;
   setProcessing: (step: string) => void;
@@ -36,6 +40,8 @@ export const useDeliveryStore = create<DeliveryStore>()(
       deliveries: [],
       drivers: DEFAULT_DRIVERS,
       areaRules: [],
+      areaImage: null,
+      areaDescription: "",
       selectedDeliveryId: null,
       selectedDeliveryIds: new Set<string>(),
       driverFilter: null,
@@ -88,6 +94,8 @@ export const useDeliveryStore = create<DeliveryStore>()(
 
       setDrivers: (drivers) => set({ drivers }),
       setAreaRules: (rules) => set({ areaRules: rules }),
+      setAreaImage: (image) => set({ areaImage: image }),
+      setAreaDescription: (desc) => set({ areaDescription: desc }),
       selectDelivery: (id) => set({ selectedDeliveryId: id }),
       setDriverFilter: (driverName) => set({ driverFilter: driverName }),
       setProcessing: (step) => set({ isProcessing: true, processingStep: step }),
@@ -129,6 +137,8 @@ export const useDeliveryStore = create<DeliveryStore>()(
       partialize: (state) => ({
         drivers: state.drivers,
         areaRules: state.areaRules,
+        areaImage: state.areaImage,
+        areaDescription: state.areaDescription,
       }),
     }
   )

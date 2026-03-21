@@ -43,6 +43,7 @@ export function useAutoAssign() {
 
   const runAssignment = useCallback(async (items: Delivery[]): Promise<Delivery[]> => {
     setProcessing("自動振り分け中...");
+    const { areaImage, areaDescription } = useDeliveryStore.getState();
 
     const unassigned = items.filter((d) => !d.driverName && d.geocodeStatus === "success");
     if (unassigned.length === 0) return items;
@@ -51,7 +52,7 @@ export function useAutoAssign() {
       const res = await fetch("/api/assign", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ deliveries: unassigned, drivers, areaRules }),
+        body: JSON.stringify({ deliveries: unassigned, drivers, areaRules, areaImage, areaDescription }),
       });
       const data = await res.json();
       const assignMap = new Map<string, { driverName: string; reason: string }>();

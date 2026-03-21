@@ -1,17 +1,31 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, ChangeEvent } from "react";
 import { v4 as uuidv4 } from "uuid";
 import { useDeliveryStore } from "@/shared/store/deliveryStore";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Card } from "@/components/ui/card";
 import { Driver, AreaRule } from "@/shared/types/delivery";
 
 export function AreaRuleEditor() {
-  const { drivers, setDrivers, areaRules, setAreaRules } = useDeliveryStore();
+  const { drivers, setDrivers, areaRules, setAreaRules, areaImage, setAreaImage, areaDescription, setAreaDescription } = useDeliveryStore();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleImageUpload = (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      setAreaImage(reader.result as string);
+    };
+    reader.readAsDataURL(file);
+    // Reset file input so re-uploading the same file works
+    e.target.value = "";
+  };
 
   const [newDriverName, setNewDriverName] = useState("");
   const [newDriverColor, setNewDriverColor] = useState("#FF6B6B");
@@ -54,6 +68,40 @@ export function AreaRuleEditor() {
 
   return (
     <div className="space-y-8">
+      <Card className="p-6">
+        <h2 className="text-lg font-bold mb-4">エリア設定</h2>
+        <div className="space-y-6">
+          <div>
+            <label className="block text-sm font-medium mb-1">区割り図をアップロード（任意）</label>
+            <p className="text-xs text-muted-foreground mb-2">アップロードした画像をAIが読み取り、エリアに基づいて配送先を振り分けます</p>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/jpeg,image/png"
+              className="hidden"
+              onChange={handleImageUpload}
+            />
+            {areaImage ? (
+              <div className="space-y-2">
+                <img src={areaImage} alt="区割り図" className="max-h-64 rounded border" />
+                <Button variant="outline" size="sm" className="text-red-500" onClick={() => setAreaImage(null)}>削除</Button>
+              </div>
+            ) : (
+              <Button variant="outline" onClick={() => fileInputRef.current?.click()}>画像を選択</Button>
+            )}
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-1">エリアルールの説明（任意）</label>
+            <Textarea
+              rows={7}
+              placeholder={"例：\n・コース1: 横浜市東部（鶴見区、神奈川区、中区）\n・コース2: 横浜市南部（港南区、栄区）\n・2tトラックは戸塚を起点に東西で分割"}
+              value={areaDescription}
+              onChange={(e) => setAreaDescription(e.target.value)}
+            />
+          </div>
+        </div>
+      </Card>
+
       <Card className="p-6">
         <h2 className="text-lg font-bold mb-4">ドライバー管理</h2>
         <Table>
