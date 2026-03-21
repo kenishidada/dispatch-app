@@ -11,6 +11,7 @@ import { GeocodingErrorList } from "@/features/map/components/GeocodingErrorList
 import { DriverFilterBar } from "@/features/assignment/components/DriverFilterBar";
 import { DriverSummary } from "@/features/assignment/components/DriverSummary";
 import { usePdfGenerate } from "@/features/pdf/hooks/usePdfGenerate";
+import { MapDropzone } from "@/features/upload/components/MapDropzone";
 
 const DeliveryMap = dynamic(
   () => import("@/features/map/components/DeliveryMap").then((m) => ({ default: m.DeliveryMap })),
@@ -19,6 +20,7 @@ const DeliveryMap = dynamic(
 
 export default function MapPage() {
   const deliveries = useDeliveryStore((s) => s.deliveries);
+  const isProcessing = useDeliveryStore((s) => s.isProcessing);
   const { generatePdf } = usePdfGenerate();
   const [shareUrl, setShareUrl] = useState<string | null>(null);
 
@@ -34,19 +36,6 @@ export default function MapPage() {
     setShareUrl(url);
     setTimeout(() => setShareUrl(null), 3000);
   };
-
-  if (deliveries.length === 0) {
-    return (
-      <div className="flex min-h-screen items-center justify-center">
-        <div className="text-center space-y-4">
-          <p className="text-gray-600">配送データがありません</p>
-          <Link href="/upload">
-            <Button>データをアップロード</Button>
-          </Link>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="flex flex-col h-screen">
@@ -65,8 +54,18 @@ export default function MapPage() {
       </header>
 
       <div className="flex flex-1 overflow-hidden">
-        <div className="flex-1">
-          <DeliveryMap />
+        <div className="flex-1 relative">
+          <MapDropzone>
+            <DeliveryMap />
+            {deliveries.length === 0 && !isProcessing && (
+              <div className="absolute inset-0 z-[500] flex items-center justify-center pointer-events-none">
+                <div className="bg-white/90 rounded-xl px-8 py-6 shadow-lg text-center">
+                  <p className="text-lg font-medium text-gray-700">Excelファイルをここにドラッグ&ドロップ</p>
+                  <p className="text-sm text-gray-500 mt-1">配送先データを読み込んでプロットします</p>
+                </div>
+              </div>
+            )}
+          </MapDropzone>
         </div>
         <div className="w-80 border-l bg-white overflow-y-auto flex flex-col">
           <DriverFilterBar />
