@@ -10,7 +10,7 @@ import { Delivery, Driver } from "@/shared/types/delivery";
 
 Font.register({
   family: "NotoSansJP",
-  src: "https://fonts.gstatic.com/s/notosansjp/v53/-F62fjtqLzI2JPCgQBnw7HFow2om.ttf",
+  src: "https://fonts.gstatic.com/s/notosansjp/v56/-F6jfjtqLzI2JPCgQBnw7HFyzSD-AsregP8VFBEj75s.ttf",
 });
 
 const styles = StyleSheet.create({
