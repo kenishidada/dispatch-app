@@ -1,15 +1,19 @@
 "use client";
 
-import { useCallback, useState, type ReactNode } from "react";
+import { useCallback, useState, useImperativeHandle, forwardRef, type ReactNode } from "react";
 import { useDeliveryStore } from "@/shared/store/deliveryStore";
 import { parseExcelFile } from "../hooks/useExcelParser";
 import { useAutoAssign } from "@/features/assignment/hooks/useAutoAssign";
+
+export type MapDropzoneHandle = {
+  openFileDialog: () => void;
+};
 
 type Props = {
   children: ReactNode;
 };
 
-export function MapDropzone({ children }: Props) {
+export const MapDropzone = forwardRef<MapDropzoneHandle, Props>(function MapDropzone({ children }, ref) {
   const mergeDeliveries = useDeliveryStore((s) => s.mergeDeliveries);
   const isProcessing = useDeliveryStore((s) => s.isProcessing);
   const processingStep = useDeliveryStore((s) => s.processingStep);
@@ -56,6 +60,19 @@ export function MapDropzone({ children }: Props) {
     [handleFile]
   );
 
+  useImperativeHandle(ref, () => ({
+    openFileDialog: () => document.getElementById("map-file-input")?.click(),
+  }));
+
+  const handleFileInput = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (file) handleFile(file);
+      e.target.value = "";
+    },
+    [handleFile]
+  );
+
   return (
     <div
       data-testid="map-dropzone"
@@ -69,6 +86,13 @@ export function MapDropzone({ children }: Props) {
       onDragLeave={() => setIsDragOver(false)}
       className="relative h-full w-full"
     >
+      <input
+        id="map-file-input"
+        type="file"
+        accept=".xlsx,.xls"
+        onChange={handleFileInput}
+        className="hidden"
+      />
       {children}
 
       {isDragOver && (
@@ -100,4 +124,4 @@ export function MapDropzone({ children }: Props) {
       )}
     </div>
   );
-}
+});

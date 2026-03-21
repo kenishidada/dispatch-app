@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -11,7 +11,7 @@ import { GeocodingErrorList } from "@/features/map/components/GeocodingErrorList
 import { DriverFilterBar } from "@/features/assignment/components/DriverFilterBar";
 import { DriverSummary } from "@/features/assignment/components/DriverSummary";
 import { usePdfGenerate } from "@/features/pdf/hooks/usePdfGenerate";
-import { MapDropzone } from "@/features/upload/components/MapDropzone";
+import { MapDropzone, type MapDropzoneHandle } from "@/features/upload/components/MapDropzone";
 
 const DeliveryMap = dynamic(
   () => import("@/features/map/components/DeliveryMap").then((m) => ({ default: m.DeliveryMap })),
@@ -23,6 +23,7 @@ export default function MapPage() {
   const isProcessing = useDeliveryStore((s) => s.isProcessing);
   const { generatePdf } = usePdfGenerate();
   const [shareUrl, setShareUrl] = useState<string | null>(null);
+  const dropzoneRef = useRef<MapDropzoneHandle>(null);
 
   const handleShare = async () => {
     const res = await fetch("/api/share", {
@@ -42,9 +43,9 @@ export default function MapPage() {
       <header className="flex items-center justify-between px-4 py-2 bg-white border-b shadow-sm">
         <h1 className="text-lg font-bold">配送先マッピングシステム</h1>
         <div className="flex gap-2">
-          <Link href="/upload">
-            <Button variant="outline" size="sm">データ追加</Button>
-          </Link>
+          <Button variant="outline" size="sm" onClick={() => dropzoneRef.current?.openFileDialog()}>
+            データ追加
+          </Button>
           <Link href="/settings">
             <Button variant="outline" size="sm">設定</Button>
           </Link>
@@ -55,7 +56,7 @@ export default function MapPage() {
 
       <div className="flex flex-1 overflow-hidden">
         <div className="flex-1 relative">
-          <MapDropzone>
+          <MapDropzone ref={dropzoneRef}>
             <DeliveryMap />
             {deliveries.length === 0 && !isProcessing && (
               <div className="absolute inset-0 z-[500] flex items-center justify-center pointer-events-none">
