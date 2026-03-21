@@ -2,6 +2,7 @@
 
 import { useCallback, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useDeliveryStore } from "@/shared/store/deliveryStore";
@@ -117,7 +118,7 @@ export function UploadDropzone() {
           </div>
         )}
 
-        <div className="mt-4">
+        <div className="mt-4 space-y-2">
           <Button
             variant="outline"
             className="w-full"
@@ -126,6 +127,11 @@ export function UploadDropzone() {
           >
             ファイルを選択
           </Button>
+          <Link href="/settings" className="block">
+            <Button variant="ghost" className="w-full text-gray-500 text-sm">
+              エリア・ドライバー設定
+            </Button>
+          </Link>
         </div>
       </Card>
     </div>
