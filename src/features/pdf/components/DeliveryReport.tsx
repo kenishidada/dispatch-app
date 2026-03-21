@@ -31,16 +31,17 @@ const styles = StyleSheet.create({
     borderBottom: "1px solid #e5e7eb",
     padding: 4,
   },
-  col1: { width: "16%" },
-  col2: { width: "6%" },
-  col3: { width: "7%" },
-  col4: { width: "6%" },
-  col5: { width: "22%" },
-  col6: { width: "7%" },
-  col7: { width: "10%" },
-  col8: { width: "10%" },
-  col9: { width: "5%" },
-  col10: { width: "11%" },
+  col1: { width: "14%" },
+  col2: { width: "5%" },
+  col3: { width: "6%" },
+  col4: { width: "5%" },
+  col5: { width: "20%" },
+  col6: { width: "6%" },
+  col7: { width: "9%" },
+  col8: { width: "9%" },
+  col9: { width: "10%" },
+  col10: { width: "4%" },
+  col11: { width: "12%" },
 });
 
 type Props = {
@@ -84,8 +85,9 @@ export function DeliveryReport({ deliveries, drivers, date }: Props) {
                 <Text style={styles.col6}>納品日</Text>
                 <Text style={styles.col7}>伝票番号</Text>
                 <Text style={styles.col8}>出荷番号</Text>
-                <Text style={styles.col9}>未配</Text>
-                <Text style={styles.col10}>メモ</Text>
+                <Text style={styles.col9}>担当者</Text>
+                <Text style={styles.col10}>未配</Text>
+                <Text style={styles.col11}>メモ</Text>
               </View>
               {items.map((d) => (
                 <View key={d.id} style={styles.tableRow}>
@@ -97,8 +99,9 @@ export function DeliveryReport({ deliveries, drivers, date }: Props) {
                   <Text style={styles.col6}>{d.deliveryDate}</Text>
                   <Text style={styles.col7}>{d.slipNumber}</Text>
                   <Text style={styles.col8}>{d.shippingNumber}</Text>
-                  <Text style={styles.col9}>{d.isUndelivered ? "○" : ""}</Text>
-                  <Text style={styles.col10}>{d.memo}</Text>
+                  <Text style={styles.col9}>{d.driverName || "未割当"}</Text>
+                  <Text style={styles.col10}>{d.isUndelivered ? "○" : ""}</Text>
+                  <Text style={styles.col11}>{d.memo}</Text>
                 </View>
               ))}
             </View>
