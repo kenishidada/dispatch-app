@@ -75,9 +75,15 @@ export function useAutoAssign() {
 
   const processAll = useCallback(async (newDeliveries: Delivery[]) => {
     let items = newDeliveries;
+
+    // Step 1: Geocode - commit results immediately so pins appear
     items = await runGeocoding(items);
+    setDeliveries(items);
+
+    // Step 2: Auto-assign
     items = await runAssignment(items);
     setDeliveries(items);
+
     clearProcessing();
   }, [runGeocoding, runAssignment, setDeliveries, clearProcessing]);
 
