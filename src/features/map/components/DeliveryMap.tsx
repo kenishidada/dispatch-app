@@ -12,9 +12,9 @@ export function DeliveryMap() {
 
   const filteredDeliveries = deliveries.filter((d) => {
     if (d.geocodeStatus !== "success") return false;
-    if (driverFilter === null) return true; // 全員: show all including unassigned
-    if (driverFilter === "__unassigned__") return !d.driverName;
-    return d.driverName === driverFilter;
+    if (driverFilter === null) return true;
+    if (driverFilter.has("__unassigned__") && !d.driverName) return true;
+    return d.driverName !== null && driverFilter.has(d.driverName);
   });
 
   const center: [number, number] =

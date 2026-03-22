@@ -8,18 +8,22 @@ export function DriverFilterBar() {
   const deliveries = useDeliveryStore((s) => s.deliveries);
   const driverFilter = useDeliveryStore((s) => s.driverFilter);
   const setDriverFilter = useDeliveryStore((s) => s.setDriverFilter);
+  const toggleDriverFilter = useDeliveryStore((s) => s.toggleDriverFilter);
 
   const assignedDrivers = [...new Set(deliveries.map((d) => d.driverName).filter(Boolean))];
   const activeDrivers = drivers.filter((d) => assignedDrivers.includes(d.name));
   const unassignedCount = deliveries.filter((d) => !d.driverName).length;
 
+  const isAll = driverFilter === null;
+  const isSelected = (name: string) => driverFilter !== null && driverFilter.has(name);
+
   return (
     <div className="p-3 space-y-2 border-b">
-      <p className="text-xs font-medium text-gray-500">ドライバー</p>
+      <p className="text-xs font-medium text-gray-500">ドライバー（複数選択可）</p>
       <div className="flex flex-wrap gap-1.5">
         <Button
           size="sm"
-          variant={driverFilter === null ? "default" : "outline"}
+          variant={isAll ? "default" : "outline"}
           className="text-xs h-7"
           onClick={() => setDriverFilter(null)}
         >
@@ -29,11 +33,9 @@ export function DriverFilterBar() {
           <Button
             key={driver.name}
             size="sm"
-            variant={driverFilter === driver.name ? "default" : "outline"}
+            variant={isSelected(driver.name) ? "default" : "outline"}
             className="text-xs h-7"
-            onClick={() =>
-              setDriverFilter(driverFilter === driver.name ? null : driver.name)
-            }
+            onClick={() => toggleDriverFilter(driver.name)}
           >
             <span
               className="inline-block w-2.5 h-2.5 rounded-full mr-1"
@@ -44,11 +46,9 @@ export function DriverFilterBar() {
         ))}
         <Button
           size="sm"
-          variant={driverFilter === "__unassigned__" ? "default" : "outline"}
+          variant={isSelected("__unassigned__") ? "default" : "outline"}
           className="text-xs h-7"
-          onClick={() =>
-            setDriverFilter(driverFilter === "__unassigned__" ? null : "__unassigned__")
-          }
+          onClick={() => toggleDriverFilter("__unassigned__")}
         >
           <span
             className="inline-block w-2.5 h-2.5 rounded-full mr-1"

@@ -10,7 +10,7 @@ type DeliveryStore = {
   areaDescription: string;
   selectedDeliveryId: string | null;
   selectedDeliveryIds: Set<string>;
-  driverFilter: string | null;
+  driverFilter: Set<string> | null;  // null = 全員, Set = 選択中のドライバー名
   isProcessing: boolean;
   processingStep: string;
 
@@ -25,7 +25,8 @@ type DeliveryStore = {
   setAreaImage: (image: string | null) => void;
   setAreaDescription: (desc: string) => void;
   selectDelivery: (id: string | null) => void;
-  setDriverFilter: (driverName: string | null) => void;
+  setDriverFilter: (filter: Set<string> | null) => void;
+  toggleDriverFilter: (driverName: string) => void;
   setProcessing: (step: string) => void;
   clearProcessing: () => void;
   toggleSelectDelivery: (id: string) => void;
@@ -97,7 +98,23 @@ export const useDeliveryStore = create<DeliveryStore>()(
       setAreaImage: (image) => set({ areaImage: image }),
       setAreaDescription: (desc) => set({ areaDescription: desc }),
       selectDelivery: (id) => set({ selectedDeliveryId: id }),
-      setDriverFilter: (driverName) => set({ driverFilter: driverName }),
+      setDriverFilter: (filter) => set({ driverFilter: filter }),
+      toggleDriverFilter: (driverName) => {
+        const current = get().driverFilter;
+        if (current === null) {
+          // 全員表示 → この1つだけ選択
+          set({ driverFilter: new Set([driverName]) });
+        } else {
+          const next = new Set(current);
+          if (next.has(driverName)) {
+            next.delete(driverName);
+            set({ driverFilter: next.size === 0 ? null : next });
+          } else {
+            next.add(driverName);
+            set({ driverFilter: next });
+          }
+        }
+      },
       setProcessing: (step) => set({ isProcessing: true, processingStep: step }),
       clearProcessing: () => set({ isProcessing: false, processingStep: "" }),
 

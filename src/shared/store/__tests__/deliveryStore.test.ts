@@ -136,9 +136,29 @@ describe("deliveryStore", () => {
 
   describe("driverFilter", () => {
     it("sets and clears driver filter", () => {
-      useDeliveryStore.getState().setDriverFilter("コース1（軽）");
-      expect(useDeliveryStore.getState().driverFilter).toBe("コース1（軽）");
+      useDeliveryStore.getState().setDriverFilter(new Set(["コース1（軽）"]));
+      expect(useDeliveryStore.getState().driverFilter?.has("コース1（軽）")).toBe(true);
       useDeliveryStore.getState().setDriverFilter(null);
+      expect(useDeliveryStore.getState().driverFilter).toBeNull();
+    });
+
+    it("toggleDriverFilter adds and removes drivers", () => {
+      // null → single select
+      useDeliveryStore.getState().toggleDriverFilter("コース1（軽）");
+      expect(useDeliveryStore.getState().driverFilter?.has("コース1（軽）")).toBe(true);
+      expect(useDeliveryStore.getState().driverFilter?.size).toBe(1);
+
+      // add second driver
+      useDeliveryStore.getState().toggleDriverFilter("コース2（軽）");
+      expect(useDeliveryStore.getState().driverFilter?.size).toBe(2);
+
+      // remove first → only second remains
+      useDeliveryStore.getState().toggleDriverFilter("コース1（軽）");
+      expect(useDeliveryStore.getState().driverFilter?.size).toBe(1);
+      expect(useDeliveryStore.getState().driverFilter?.has("コース2（軽）")).toBe(true);
+
+      // remove last → back to null (all)
+      useDeliveryStore.getState().toggleDriverFilter("コース2（軽）");
       expect(useDeliveryStore.getState().driverFilter).toBeNull();
     });
   });

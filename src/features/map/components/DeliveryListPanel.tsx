@@ -23,8 +23,8 @@ export function DeliveryListPanel() {
 
   const filtered = deliveries.filter((d) => {
     if (driverFilter === null) return true;
-    if (driverFilter === "__unassigned__") return !d.driverName;
-    return d.driverName === driverFilter;
+    if (driverFilter.has("__unassigned__") && !d.driverName) return true;
+    return d.driverName !== null && driverFilter.has(d.driverName);
   });
 
   const allSelected = filtered.length > 0 && filtered.every((d) => selectedDeliveryIds.has(d.id));
