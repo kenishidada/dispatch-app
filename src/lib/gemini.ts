@@ -107,7 +107,7 @@ export async function autoAssign(
   areaImage: string | null,
   areaDescription: string
 ): Promise<AssignmentResult[]> {
-  const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+  const model = genAI.getGenerativeModel({ model: "gemini-3.1-flash-lite-preview" });
   const batchSize = 100;
   const allAssignments: AssignmentResult[] = [];
   const validDriverNames = new Set(drivers.map((d) => d.name));
