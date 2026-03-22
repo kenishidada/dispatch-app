@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { autoAssign } from "@/lib/gemini";
 import { Delivery, Driver, AreaRule } from "@/shared/types/delivery";
 
+export const maxDuration = 300;
+
 export async function POST(request: NextRequest) {
   const body = await request.json();
   const { deliveries, drivers, areaRules, areaImage, areaDescription } = body as {

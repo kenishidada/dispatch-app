@@ -61,6 +61,45 @@ ${JSON.stringify(deliveries.map((d) => ({ id: d.id, address: d.address, volume: 
 { "assignments": [{ "deliveryId": "...", "driverName": "...", "reason": "..." }] }`;
 }
 
+// Step 1: 画像からエリアルールをテキストに変換（3.1-proで1回だけ）
+async function extractAreaRulesFromImage(
+  areaImage: string,
+  drivers: Driver[]
+): Promise<string> {
+  const model = genAI.getGenerativeModel({ model: "gemini-3.1-pro-preview" });
+  const base64Data = areaImage.replace(/^data:image\/\w+;base64,/, "");
+  const mimeType = areaImage.match(/^data:(image\/\w+);/)?.[1] || "image/jpeg";
+
+  const driverList = drivers.map((d) => `${d.name}（${d.vehicleType === "2t" ? "2tトラック" : "軽自動車"}）`).join(", ");
+
+  try {
+    console.log("[gemini] Extracting area rules from image with 3.1-pro...");
+    const result = await model.generateContent([
+      {
+        inlineData: { mimeType, data: base64Data },
+      },
+      {
+        text: `この画像は配送エリアの区割り図です。
+画像を分析し、色分けされたエリアをテキストで説明してください。
+
+利用可能なドライバー: ${driverList}
+
+以下の形式で、各エリアがどの市区町村を含むか具体的に記述してください：
+- コース名: 含まれる市区町村の一覧と方角の特徴
+
+テキストのみ出力してください。JSONは不要です。`,
+      },
+    ]);
+    const text = result.response.text();
+    console.log("[gemini] Area rules extracted:", text.substring(0, 200) + "...");
+    return text;
+  } catch (error) {
+    console.error("[gemini] Image analysis error:", error);
+    return "";
+  }
+}
+
+// Step 2: テキストベースで高速振り分け（2.5-flashでバッチ処理）
 export async function autoAssign(
   deliveries: Delivery[],
   drivers: Driver[],
@@ -68,10 +107,21 @@ export async function autoAssign(
   areaImage: string | null,
   areaDescription: string
 ): Promise<AssignmentResult[]> {
-  const model = genAI.getGenerativeModel({ model: "gemini-3.1-pro-preview" });
+  const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
   const batchSize = 100;
   const allAssignments: AssignmentResult[] = [];
   const validDriverNames = new Set(drivers.map((d) => d.name));
+
+  // 画像がある場合、先に3.1-proでテキストルールに変換
+  let effectiveDescription = areaDescription;
+  if (areaImage) {
+    const imageRules = await extractAreaRulesFromImage(areaImage, drivers);
+    if (imageRules) {
+      effectiveDescription = effectiveDescription
+        ? `${effectiveDescription}\n\n【画像から読み取ったエリアルール】\n${imageRules}`
+        : imageRules;
+    }
+  }
 
   for (let i = 0; i < deliveries.length; i += batchSize) {
     const batch = deliveries.slice(i, i + batchSize);
@@ -84,31 +134,12 @@ export async function autoAssign(
       })),
       drivers,
       areaRules,
-      areaDescription
+      effectiveDescription
     );
 
     try {
-      let text: string;
-
-      if (areaImage) {
-        // Multimodal: send image + text
-        const base64Data = areaImage.replace(/^data:image\/\w+;base64,/, "");
-        const mimeType = areaImage.match(/^data:(image\/\w+);/)?.[1] || "image/jpeg";
-        const result = await model.generateContent([
-          {
-            inlineData: {
-              mimeType,
-              data: base64Data,
-            },
-          },
-          { text: "この画像はエリア区割り図です。この区割りに基づいて、以下の配送先をドライバーに振り分けてください。\n\n" + prompt },
-        ]);
-        text = result.response.text();
-      } else {
-        // Text only (existing flow)
-        const result = await model.generateContent(prompt);
-        text = result.response.text();
-      }
+      const result = await model.generateContent(prompt);
+      const text = result.response.text();
 
       const jsonMatch = text.match(/\{[\s\S]*\}/);
       if (!jsonMatch) throw new Error("No JSON found in response");
@@ -121,7 +152,6 @@ export async function autoAssign(
           if (validDriverNames.has(a.driverName)) {
             matched = a.driverName;
           } else {
-            // 部分一致: Geminiが「コース1」と返しても「コース1（軽）」にマッチ
             const found = driverNameArray.find(
               (name) => name.includes(a.driverName) || a.driverName.includes(name)
             );
