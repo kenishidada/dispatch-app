@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, ChangeEvent } from "react";
+import { useState, useRef, useCallback, ChangeEvent } from "react";
 import { v4 as uuidv4 } from "uuid";
 import { useDeliveryStore } from "@/shared/store/deliveryStore";
 import { Button } from "@/components/ui/button";
@@ -15,15 +15,18 @@ export function AreaRuleEditor() {
   const { drivers, setDrivers, areaRules, setAreaRules, areaImage, setAreaImage, areaDescription, setAreaDescription } = useDeliveryStore();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const [isDragOver, setIsDragOver] = useState(false);
+
+  const loadImageFile = useCallback((file: File) => {
+    if (!file.type.startsWith("image/")) return;
+    const reader = new FileReader();
+    reader.onload = () => setAreaImage(reader.result as string);
+    reader.readAsDataURL(file);
+  }, [setAreaImage]);
+
   const handleImageUpload = (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      setAreaImage(reader.result as string);
-    };
-    reader.readAsDataURL(file);
-    // Reset file input so re-uploading the same file works
+    if (file) loadImageFile(file);
     e.target.value = "";
   };
 
@@ -84,10 +87,32 @@ export function AreaRuleEditor() {
             {areaImage ? (
               <div className="space-y-2">
                 <img src={areaImage} alt="区割り図" className="max-h-64 rounded border" />
-                <Button variant="outline" size="sm" className="text-red-500" onClick={() => setAreaImage(null)}>削除</Button>
+                <div className="flex gap-2">
+                  <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()}>変更</Button>
+                  <Button variant="outline" size="sm" className="text-red-500" onClick={() => setAreaImage(null)}>削除</Button>
+                </div>
               </div>
             ) : (
-              <Button variant="outline" onClick={() => fileInputRef.current?.click()}>画像を選択</Button>
+              <div
+                onDrop={(e) => {
+                  e.preventDefault();
+                  setIsDragOver(false);
+                  const file = e.dataTransfer.files[0];
+                  if (file) loadImageFile(file);
+                }}
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  setIsDragOver(true);
+                }}
+                onDragLeave={() => setIsDragOver(false)}
+                onClick={() => fileInputRef.current?.click()}
+                className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors ${
+                  isDragOver ? "border-blue-500 bg-blue-50" : "border-gray-300 hover:border-gray-400"
+                }`}
+              >
+                <p className="text-sm font-medium text-gray-600">区割り図をドラッグ&ドロップ</p>
+                <p className="text-xs text-gray-400 mt-1">またはクリックして選択（JPG / PNG）</p>
+              </div>
             )}
           </div>
           <div>
