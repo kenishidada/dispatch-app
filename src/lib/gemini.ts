@@ -180,5 +180,104 @@ export async function autoAssign(
     }
   }
 
-  return allAssignments;
+  // Step 3: AIレビュー＋自動修正
+  const reviewed = await reviewAndFix(allAssignments, deliveries, drivers, effectiveDescription);
+  return reviewed;
+}
+
+// Step 3: 振り分け結果をレビューし、不自然な割り当てを自動修正
+async function reviewAndFix(
+  assignments: AssignmentResult[],
+  deliveries: Delivery[],
+  drivers: Driver[],
+  areaDescription: string
+): Promise<AssignmentResult[]> {
+  const model = genAI.getGenerativeModel({ model: "gemini-3.1-flash-lite-preview" });
+
+  // レビュー用のデータ：配送先住所+現在の割り当てをまとめる
+  const assignMap = new Map(assignments.map((a) => [a.deliveryId, a.driverName]));
+  const reviewData = deliveries
+    .filter((d) => assignMap.get(d.id))
+    .map((d) => ({
+      id: d.id,
+      address: d.address,
+      volume: d.volume,
+      currentDriver: assignMap.get(d.id),
+    }));
+
+  if (reviewData.length === 0) return assignments;
+
+  const driverNames = drivers.map((d) => d.name).join(", ");
+
+  const prompt = `あなたは配送ルートの品質レビュアーです。
+以下の振り分け結果を確認し、地理的に不自然な割り当てがあれば修正してください。
+
+【利用可能なドライバー】
+${driverNames}
+
+${areaDescription ? `【エリアルール】\n${areaDescription}\n` : ""}
+
+【レビュー対象】
+${JSON.stringify(reviewData)}
+
+【指示】
+- 各配送先の住所と割り当てドライバーを確認
+- 地理的に明らかに別エリアに属する配送先があれば、正しいドライバーに修正
+- 問題ない割り当てはそのまま
+- 修正があるもののみ出力
+
+【出力形式】
+修正が必要なもののみ、以下のJSON形式で出力してください。修正不要なら空配列を返してください。
+{ "corrections": [{ "deliveryId": "...", "newDriverName": "...", "reason": "..." }] }`;
+
+  try {
+    console.log("[gemini] Reviewing assignments...");
+    const result = await model.generateContent(prompt);
+    const text = result.response.text();
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) return assignments;
+
+    const parsed = JSON.parse(jsonMatch[0]);
+    const corrections: { deliveryId: string; newDriverName: string; reason: string }[] = parsed.corrections || [];
+
+    if (corrections.length === 0) {
+      console.log("[gemini] Review passed: no corrections needed");
+      return assignments;
+    }
+
+    console.log(`[gemini] Review found ${corrections.length} corrections`);
+    const validDriverNames = new Set(drivers.map((d) => d.name));
+    const driverNameArray = Array.from(validDriverNames);
+    const correctionMap = new Map<string, { driver: string; reason: string }>();
+
+    for (const c of corrections) {
+      let matched = "";
+      if (validDriverNames.has(c.newDriverName)) {
+        matched = c.newDriverName;
+      } else {
+        const found = driverNameArray.find(
+          (name) => name.includes(c.newDriverName) || c.newDriverName.includes(name)
+        );
+        if (found) matched = found;
+      }
+      if (matched) {
+        correctionMap.set(c.deliveryId, { driver: matched, reason: c.reason || "" });
+      }
+    }
+
+    return assignments.map((a) => {
+      const correction = correctionMap.get(a.deliveryId);
+      if (correction) {
+        return {
+          ...a,
+          driverName: correction.driver,
+          reason: `${correction.reason}（レビューで修正）`,
+        };
+      }
+      return a;
+    });
+  } catch (error) {
+    console.error("[gemini] Review error:", error);
+    return assignments;
+  }
 }
