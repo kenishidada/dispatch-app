@@ -27,6 +27,8 @@ type Props = {
 
 export function DeliveryPin({ delivery }: Props) {
   const selectDelivery = useDeliveryStore((s) => s.selectDelivery);
+  const updateDriverAssignment = useDeliveryStore((s) => s.updateDriverAssignment);
+  const drivers = useDeliveryStore((s) => s.drivers);
 
   if (delivery.lat == null || delivery.lng == null) return null;
 
@@ -43,10 +45,29 @@ export function DeliveryPin({ delivery }: Props) {
       }}
     >
       <Popup>
-        <div className="text-sm">
+        <div className="text-sm min-w-[200px]">
           <p className="font-bold">{delivery.destinationName}</p>
-          <p>{delivery.address}</p>
-          <p>容積: {delivery.volume}L / 重量: {delivery.actualWeight}kg</p>
+          <p className="text-gray-600">{delivery.address}</p>
+          <p className="text-gray-600">容積: {delivery.volume}L / 重量: {delivery.actualWeight}kg</p>
+          <div className="mt-2 pt-2 border-t">
+            <p className="text-xs text-gray-500 mb-1">担当コース</p>
+            <select
+              value={delivery.driverName || ""}
+              onChange={(e) => {
+                if (e.target.value) {
+                  updateDriverAssignment(delivery.id, e.target.value);
+                }
+              }}
+              className="w-full text-sm border rounded px-2 py-1 bg-white"
+            >
+              <option value="" disabled>未割当</option>
+              {drivers.map((d) => (
+                <option key={d.name} value={d.name}>
+                  {d.name}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
       </Popup>
     </Marker>
