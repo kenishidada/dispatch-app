@@ -11,6 +11,7 @@ type DeliveryStore = {
   selectedDeliveryId: string | null;
   selectedDeliveryIds: Set<string>;
   driverFilter: Set<string> | null;  // null = 全員, Set = 選択中のドライバー名
+  uploadedFileName: string;
   isProcessing: boolean;
   processingStep: string;
 
@@ -25,6 +26,7 @@ type DeliveryStore = {
   setAreaImage: (image: string | null) => void;
   setAreaDescription: (desc: string) => void;
   selectDelivery: (id: string | null) => void;
+  setUploadedFileName: (name: string) => void;
   setDriverFilter: (filter: Set<string> | null) => void;
   toggleDriverFilter: (driverName: string) => void;
   setProcessing: (step: string) => void;
@@ -46,6 +48,7 @@ export const useDeliveryStore = create<DeliveryStore>()(
       selectedDeliveryId: null,
       selectedDeliveryIds: new Set<string>(),
       driverFilter: null,
+      uploadedFileName: "",
       isProcessing: false,
       processingStep: "",
 
@@ -53,10 +56,10 @@ export const useDeliveryStore = create<DeliveryStore>()(
 
       mergeDeliveries: (newData) => {
         const existing = get().deliveries;
-        const undelivered = existing.filter((d) => d.isUndelivered);
         const newSlipNumbers = new Set(newData.map((d) => d.slipNumber));
-        const keptUndelivered = undelivered.filter(
-          (d) => !newSlipNumbers.has(d.slipNumber)
+        // Keep existing undelivered items whose slip number is NOT in the new data
+        const keptUndelivered = existing.filter(
+          (d) => d.isUndelivered && !newSlipNumbers.has(d.slipNumber)
         );
         set({ deliveries: [...keptUndelivered, ...newData] });
       },
@@ -98,6 +101,7 @@ export const useDeliveryStore = create<DeliveryStore>()(
       setAreaImage: (image) => set({ areaImage: image }),
       setAreaDescription: (desc) => set({ areaDescription: desc }),
       selectDelivery: (id) => set({ selectedDeliveryId: id }),
+      setUploadedFileName: (name) => set({ uploadedFileName: name }),
       setDriverFilter: (filter) => set({ driverFilter: filter }),
       toggleDriverFilter: (driverName) => {
         const current = get().driverFilter;

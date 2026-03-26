@@ -30,6 +30,47 @@ export function AreaRuleEditor() {
     e.target.value = "";
   };
 
+  const [editingDriver, setEditingDriver] = useState<string | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editColor, setEditColor] = useState("");
+
+  const startEdit = (driver: Driver) => {
+    setEditingDriver(driver.name);
+    setEditName(driver.name);
+    setEditColor(driver.color);
+  };
+
+  const saveEdit = (originalName: string) => {
+    if (!editName.trim()) return;
+    const updated = drivers.map((d) =>
+      d.name === originalName
+        ? { ...d, name: editName.trim(), color: editColor }
+        : d
+    );
+    setDrivers(updated);
+    // Update deliveries assigned to the old driver name
+    const { deliveries, setDeliveries } = useDeliveryStore.getState();
+    if (editName.trim() !== originalName) {
+      setDeliveries(
+        deliveries.map((del) =>
+          del.driverName === originalName
+            ? { ...del, driverName: editName.trim(), colorCode: editColor }
+            : del
+        )
+      );
+    } else {
+      // Color changed only - update colorCode
+      setDeliveries(
+        deliveries.map((del) =>
+          del.driverName === originalName
+            ? { ...del, colorCode: editColor }
+            : del
+        )
+      );
+    }
+    setEditingDriver(null);
+  };
+
   const [newDriverName, setNewDriverName] = useState("");
   const [newDriverColor, setNewDriverColor] = useState("#FF6B6B");
   const [newDriverVehicle, setNewDriverVehicle] = useState<"2t" | "light">("light");
@@ -128,7 +169,8 @@ export function AreaRuleEditor() {
       </Card>
 
       <Card className="p-6">
-        <h2 className="text-lg font-bold mb-4">ドライバー管理</h2>
+        <h2 className="text-lg font-bold mb-2">ドライバー管理</h2>
+        <p className="text-sm text-muted-foreground mb-4">ドライバーの名前・色・車両タイプを編集できます。変更は即座に反映されます。</p>
         <Table>
           <TableHeader>
             <TableRow>
@@ -141,17 +183,45 @@ export function AreaRuleEditor() {
           <TableBody>
             {drivers.map((d) => (
               <TableRow key={d.name}>
-                <TableCell className="flex items-center gap-2">
-                  <span className="w-4 h-4 rounded-full inline-block" style={{ backgroundColor: d.color }} />
-                  {d.name}
-                </TableCell>
-                <TableCell>{d.color}</TableCell>
-                <TableCell>{d.vehicleType === "2t" ? "2tトラック" : "軽自動車"}</TableCell>
-                <TableCell>
-                  <Button variant="ghost" size="sm" className="text-red-500" onClick={() => removeDriver(d.name)}>
-                    削除
-                  </Button>
-                </TableCell>
+                {editingDriver === d.name ? (
+                  <>
+                    <TableCell>
+                      <Input
+                        value={editName}
+                        onChange={(e) => setEditName(e.target.value)}
+                        onKeyDown={(e) => { if (e.key === "Enter") saveEdit(d.name); }}
+                        className="h-8"
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <Input type="color" value={editColor} onChange={(e) => setEditColor(e.target.value)} className="w-16 h-8" />
+                    </TableCell>
+                    <TableCell>{d.vehicleType === "2t" ? "2tトラック" : "軽自動車"}</TableCell>
+                    <TableCell>
+                      <div className="flex gap-1">
+                        <Button size="sm" onClick={() => saveEdit(d.name)}>保存</Button>
+                        <Button variant="ghost" size="sm" onClick={() => setEditingDriver(null)}>取消</Button>
+                      </div>
+                    </TableCell>
+                  </>
+                ) : (
+                  <>
+                    <TableCell className="flex items-center gap-2">
+                      <span className="w-4 h-4 rounded-full inline-block" style={{ backgroundColor: d.color }} />
+                      {d.name}
+                    </TableCell>
+                    <TableCell>{d.color}</TableCell>
+                    <TableCell>{d.vehicleType === "2t" ? "2tトラック" : "軽自動車"}</TableCell>
+                    <TableCell>
+                      <div className="flex gap-1">
+                        <Button variant="outline" size="sm" onClick={() => startEdit(d)}>編集</Button>
+                        <Button variant="ghost" size="sm" className="text-red-500" onClick={() => removeDriver(d.name)}>
+                          削除
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </>
+                )}
               </TableRow>
             ))}
           </TableBody>

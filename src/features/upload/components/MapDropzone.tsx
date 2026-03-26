@@ -40,6 +40,7 @@ export const MapDropzone = forwardRef<MapDropzoneHandle, Props>(function MapDrop
       }
 
       mergeDeliveries(result.deliveries);
+      useDeliveryStore.getState().setUploadedFileName(file.name);
       const allDeliveries = useDeliveryStore.getState().deliveries;
 
       // Background processing - don't await so UI stays interactive

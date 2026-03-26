@@ -10,8 +10,18 @@ export function usePdfGenerate() {
   const drivers = useDeliveryStore((s) => s.drivers);
 
   const generatePdf = useCallback(async () => {
+    const driverFilter = useDeliveryStore.getState().driverFilter;
+    let filteredDeliveries = deliveries;
+
+    if (driverFilter !== null) {
+      filteredDeliveries = deliveries.filter((d) => {
+        if (driverFilter.has("__unassigned__") && !d.driverName) return true;
+        return d.driverName !== null && driverFilter.has(d.driverName);
+      });
+    }
+
     const today = new Date().toLocaleDateString("ja-JP");
-    const doc = DeliveryReport({ deliveries, drivers, date: today });
+    const doc = DeliveryReport({ deliveries: filteredDeliveries, drivers, date: today });
     const blob = await pdf(doc).toBlob();
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");

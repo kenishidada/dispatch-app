@@ -21,15 +21,27 @@ const DeliveryMap = dynamic(
 export default function MapPage() {
   const deliveries = useDeliveryStore((s) => s.deliveries);
   const isProcessing = useDeliveryStore((s) => s.isProcessing);
+  const uploadedFileName = useDeliveryStore((s) => s.uploadedFileName);
+  const driverFilter = useDeliveryStore((s) => s.driverFilter);
   const { generatePdf } = usePdfGenerate();
   const [shareUrl, setShareUrl] = useState<string | null>(null);
   const dropzoneRef = useRef<MapDropzoneHandle>(null);
 
   const handleShare = async () => {
+    const currentFilter = useDeliveryStore.getState().driverFilter;
+    let shareDeliveries = deliveries;
+
+    if (currentFilter !== null) {
+      shareDeliveries = deliveries.filter((d) => {
+        if (currentFilter.has("__unassigned__") && !d.driverName) return true;
+        return d.driverName !== null && currentFilter.has(d.driverName);
+      });
+    }
+
     const res = await fetch("/api/share", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ deliveries, drivers: useDeliveryStore.getState().drivers }),
+      body: JSON.stringify({ deliveries: shareDeliveries, drivers: useDeliveryStore.getState().drivers }),
     });
     const data = await res.json();
     const url = `${window.location.origin}/view/${data.sessionId}`;
@@ -41,7 +53,12 @@ export default function MapPage() {
   return (
     <div className="flex flex-col h-screen">
       <header className="flex items-center justify-between px-4 py-2 bg-white border-b shadow-sm">
-        <h1 className="text-lg font-bold">配送先マッピングシステム</h1>
+        <h1 className="text-lg font-bold">
+          配送先マッピングシステム
+          {uploadedFileName && (
+            <span className="text-sm font-normal text-gray-500 ml-2">{uploadedFileName}</span>
+          )}
+        </h1>
         <div className="flex gap-2">
           <Button variant="outline" size="sm" onClick={() => dropzoneRef.current?.openFileDialog()}>
             データ追加
@@ -49,8 +66,12 @@ export default function MapPage() {
           <Link href="/settings">
             <Button variant="outline" size="sm">設定</Button>
           </Link>
-          <Button variant="outline" size="sm" onClick={handleShare}>{shareUrl ? "コピーしました!" : "共有リンク生成"}</Button>
-          <Button size="sm" onClick={generatePdf}>PDF出力</Button>
+          <Button variant="outline" size="sm" onClick={handleShare}>
+            {shareUrl ? "コピーしました!" : (driverFilter ? "共有リンク生成（選択中）" : "共有リンク生成（全件）")}
+          </Button>
+          <Button size="sm" onClick={generatePdf}>
+            {driverFilter ? "PDF出力（選択中）" : "PDF出力（全件）"}
+          </Button>
         </div>
       </header>
 

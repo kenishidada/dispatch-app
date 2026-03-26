@@ -36,6 +36,7 @@ export function UploadDropzone() {
       }
 
       mergeDeliveries(result.deliveries);
+      useDeliveryStore.getState().setUploadedFileName(file.name);
       const allDeliveries = useDeliveryStore.getState().deliveries;
       await processAll(allDeliveries);
       router.push("/map");
