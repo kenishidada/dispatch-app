@@ -13,7 +13,7 @@ export function UploadDropzone() {
   const router = useRouter();
   const { mergeDeliveries, setProcessing, clearProcessing, isProcessing, processingStep } =
     useDeliveryStore();
-  const { processAll } = useAutoAssign();
+  const { runGeocoding } = useAutoAssign();
   const [error, setError] = useState<string | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
 
@@ -38,10 +38,10 @@ export function UploadDropzone() {
       mergeDeliveries(result.deliveries);
       useDeliveryStore.getState().setUploadedFileName(file.name);
       const allDeliveries = useDeliveryStore.getState().deliveries;
-      await processAll(allDeliveries);
+      await runGeocoding(allDeliveries);
       router.push("/map");
     },
-    [mergeDeliveries, setProcessing, clearProcessing, router, processAll]
+    [mergeDeliveries, setProcessing, clearProcessing, router, runGeocoding]
   );
 
   const handleDrop = useCallback(

@@ -17,7 +17,7 @@ export const MapDropzone = forwardRef<MapDropzoneHandle, Props>(function MapDrop
   const mergeDeliveries = useDeliveryStore((s) => s.mergeDeliveries);
   const isProcessing = useDeliveryStore((s) => s.isProcessing);
   const processingStep = useDeliveryStore((s) => s.processingStep);
-  const { processAll } = useAutoAssign();
+  const { runGeocoding } = useAutoAssign();
   const [isDragOver, setIsDragOver] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -43,12 +43,11 @@ export const MapDropzone = forwardRef<MapDropzoneHandle, Props>(function MapDrop
       useDeliveryStore.getState().setUploadedFileName(file.name);
       const allDeliveries = useDeliveryStore.getState().deliveries;
 
-      // Background processing - don't await so UI stays interactive
-      processAll(allDeliveries).catch(() => {
+      runGeocoding(allDeliveries).catch(() => {
         useDeliveryStore.getState().clearProcessing();
       });
     },
-    [mergeDeliveries, processAll]
+    [mergeDeliveries, runGeocoding]
   );
 
   const handleDrop = useCallback(
