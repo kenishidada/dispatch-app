@@ -1,6 +1,7 @@
 import { v4 as uuidv4 } from "uuid";
 import * as XLSX from "xlsx";
-import { Delivery } from "@/shared/types/delivery";
+import { Delivery, SlipDetail } from "@/shared/types/delivery";
+import { normalizeAddress } from "@/lib/address";
 
 type ParseResult = {
   success: true;
@@ -50,34 +51,68 @@ export function parseExcelFile(file: File): Promise<ParseResult> {
           return;
         }
 
-        const deliveries: Delivery[] = jsonData.map((row) => ({
-          id: uuidv4(),
-          factoryName: String(row["工場名"] ?? ""),
-          carrierCode: Number(row["運送業者コード"] ?? 0),
-          carrierName: String(row["運送業者名"] ?? ""),
-          destinationCode: Number(row["届先コード"] ?? 0),
-          destinationName: String(row["届先名"] ?? ""),
-          packageCount: Number(row["個口数"] ?? 0),
-          quantity: Number(row["数 量"] ?? 0),
-          caseCount: Number(row["甲数"] ?? 0),
-          assortQuantity: Number(row["ｱｿｰﾄ数量"] ?? 0),
-          actualWeight: Number(row["実重量"] ?? 0),
-          volume: Number(row["容積"] ?? 0),
-          addressCode: Number(row["住所コード"] ?? 0),
-          address: String(row["届先住所"] ?? ""),
-          deliveryDate: String(row["納品日"] ?? ""),
-          slipNumber: Number(row["伝票番号"] ?? 0),
-          shippingNumber: Number(row["出荷番号"] ?? 0),
-          shippingCategory: String(row["運送区分"] ?? ""),
-          lat: null,
-          lng: null,
-          driverName: null,
-          colorCode: null,
-          isUndelivered: false,
-          memo: "",
-          assignReason: "",
-          geocodeStatus: "pending",
-        }));
+        type RawRow = Record<string, unknown>;
+
+        const groups = new Map<string, { rep: RawRow; rawAddr: string; rows: RawRow[] }>();
+        for (const row of jsonData) {
+          const rawAddr = String(row["届先住所"] ?? "");
+          const key = normalizeAddress(rawAddr);
+          const existing = groups.get(key);
+          if (existing) {
+            existing.rows.push(row);
+          } else {
+            groups.set(key, { rep: row, rawAddr, rows: [row] });
+          }
+        }
+
+        const deliveries: Delivery[] = Array.from(groups.entries()).map(([normalizedAddr, group]) => {
+          const slips: SlipDetail[] = group.rows.map((r) => ({
+            slipNumber: Number(r["伝票番号"] ?? 0),
+            shippingNumber: Number(r["出荷番号"] ?? 0),
+            packageCount: Number(r["個口数"] ?? 0),
+            quantity: Number(r["数 量"] ?? 0),
+            caseCount: Number(r["甲数"] ?? 0),
+            assortQuantity: Number(r["ｱｿｰﾄ数量"] ?? 0),
+            actualWeight: Number(r["実重量"] ?? 0),
+            volume: Number(r["容積"] ?? 0),
+            factoryName: String(r["工場名"] ?? ""),
+          }));
+          const sum = (k: keyof SlipDetail) =>
+            slips.reduce((s, x) => s + (Number(x[k]) || 0), 0);
+          const rep = group.rep;
+          return {
+            id: uuidv4(),
+            factoryName: String(rep["工場名"] ?? ""),
+            carrierCode: Number(rep["運送業者コード"] ?? 0),
+            carrierName: String(rep["運送業者名"] ?? ""),
+            destinationCode: Number(rep["届先コード"] ?? 0),
+            destinationName: String(rep["届先名"] ?? ""),
+            packageCount: sum("packageCount"),
+            quantity: sum("quantity"),
+            caseCount: sum("caseCount"),
+            assortQuantity: sum("assortQuantity"),
+            actualWeight: sum("actualWeight"),
+            volume: sum("volume"),
+            addressCode: Number(rep["住所コード"] ?? 0),
+            address: normalizedAddr,
+            rawAddress: group.rawAddr,
+            deliveryDate: String(rep["納品日"] ?? ""),
+            slipNumber: Number(rep["伝票番号"] ?? 0),
+            shippingNumber: Number(rep["出荷番号"] ?? 0),
+            shippingCategory: String(rep["運送区分"] ?? ""),
+            slips,
+            lat: null,
+            lng: null,
+            driverName: null,
+            courseId: null,
+            colorCode: null,
+            isUndelivered: false,
+            memo: "",
+            assignReason: "",
+            unassignedReason: "",
+            geocodeStatus: "pending",
+          };
+        });
 
         resolve({ success: true, deliveries });
       } catch {
