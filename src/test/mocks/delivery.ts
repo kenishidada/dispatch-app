@@ -1,4 +1,4 @@
-import { Delivery, Driver } from "@/shared/types/delivery";
+import { Delivery } from "@/shared/types/delivery";
 
 export function createMockDelivery(overrides: Partial<Delivery> = {}): Delivery {
   return {
@@ -16,27 +16,21 @@ export function createMockDelivery(overrides: Partial<Delivery> = {}): Delivery 
     volume: 120,
     addressCode: 14100,
     address: "神奈川県横浜市戸塚区上矢部町1-1",
+    rawAddress: "神奈川県横浜市戸塚区上矢部町１－１",
     deliveryDate: "320",
     slipNumber: 12345678,
     shippingNumber: 87654321,
     shippingCategory: "★県別（関東）",
+    slips: [],
     lat: 35.4,
     lng: 139.5,
-    driverName: null,
+    courseId: null,
     colorCode: null,
     isUndelivered: false,
     memo: "",
     assignReason: "",
+    unassignedReason: "",
     geocodeStatus: "pending",
-    ...overrides,
-  };
-}
-
-export function createMockDriver(overrides: Partial<Driver> = {}): Driver {
-  return {
-    name: "コース1（軽）",
-    color: "#34A853",
-    vehicleType: "light",
     ...overrides,
   };
 }

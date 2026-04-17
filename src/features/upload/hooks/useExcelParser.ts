@@ -103,7 +103,6 @@ export function parseExcelFile(file: File): Promise<ParseResult> {
             slips,
             lat: null,
             lng: null,
-            driverName: null,
             courseId: null,
             colorCode: null,
             isUndelivered: false,

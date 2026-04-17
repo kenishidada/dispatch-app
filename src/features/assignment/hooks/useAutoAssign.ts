@@ -76,7 +76,6 @@ export function useAutoAssign() {
         return {
           ...d,
           courseId: a.courseId,
-          driverName: course?.name ?? null,
           colorCode: course?.color ?? null,
           assignReason: a.reason,
           unassignedReason: a.unassignedReason,

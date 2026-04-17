@@ -82,7 +82,7 @@ async function callAssignBatch(input: AssignBatchInput): Promise<AssignmentResul
     .map((c) => `- ${c.id} (${c.name}): 担当エリア「${c.defaultRegion || "未設定"}」`)
     .join("\n");
   const rulesText = areaRules.length > 0
-    ? "\n【エリアルール】\n" + areaRules.map((r) => `- ${r.region} → ${r.courseId ?? r.driverName}`).join("\n")
+    ? "\n【エリアルール】\n" + areaRules.map((r) => `- ${r.region} → ${r.courseId}`).join("\n")
     : "";
   const items = deliveries.map((d) => ({
     id: d.id,

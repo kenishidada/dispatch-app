@@ -1,9 +1,9 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import {
-  Delivery, Driver, AreaRule, Course, VehicleSpec,
+  Delivery, AreaRule, Course, VehicleSpec,
   AssignmentLogEntry, CapacityWarning,
-  DEFAULT_DRIVERS, DEFAULT_COURSES, DEFAULT_VEHICLE_SPECS,
+  DEFAULT_COURSES, DEFAULT_VEHICLE_SPECS,
 } from "@/shared/types/delivery";
 
 export function migrateStore(persistedState: unknown, version: number): unknown {
@@ -28,15 +28,13 @@ export function migrateStore(persistedState: unknown, version: number): unknown 
       })
     : DEFAULT_COURSES;
   const oldRules =
-    (s.areaRules as Array<{ id: string; region: string; driverName: string }> | undefined) ?? [];
+    (s.areaRules as Array<{ id: string; region: string; driverName?: string; courseId?: string }> | undefined) ?? [];
   const areaRules: AreaRule[] = oldRules.map((r) => {
-    const matched = courses.find((c) => c.name === r.driverName);
+    const matched = r.driverName ? courses.find((c) => c.name === r.driverName) : null;
     return {
       id: r.id,
       region: r.region,
-      driverName: r.driverName,
-      vehicleType: matched?.vehicleType ?? "light",
-      courseId: matched?.id ?? courses[0]?.id ?? "",
+      courseId: r.courseId ?? matched?.id ?? courses[0]?.id ?? "",
     };
   });
   return {
@@ -50,7 +48,6 @@ export function migrateStore(persistedState: unknown, version: number): unknown 
 
 type DeliveryStore = {
   deliveries: Delivery[];
-  drivers: Driver[];                    // Phase 4 で削除
   courses: Course[];
   vehicleSpecs: VehicleSpec[];
   areaRules: AreaRule[];
@@ -58,7 +55,6 @@ type DeliveryStore = {
   areaDescription: string;
   selectedDeliveryId: string | null;
   selectedDeliveryIds: Set<string>;
-  driverFilter: Set<string> | null;     // Phase 4 で削除
   courseFilter: Set<string> | null;
   activeCourseIds: string[];
   assignmentLog: AssignmentLogEntry[];
@@ -67,28 +63,21 @@ type DeliveryStore = {
   isProcessing: boolean;
   processingStep: string;
 
-  // 既存メソッド
   setDeliveries: (deliveries: Delivery[]) => void;
   mergeDeliveries: (newData: Delivery[]) => void;
   updateDelivery: (id: string, updates: Partial<Delivery>) => void;
-  updateDriverAssignment: (id: string, driverName: string) => void;
   toggleUndelivered: (id: string) => void;
   setMemo: (id: string, memo: string) => void;
-  setDrivers: (drivers: Driver[]) => void;
   setAreaRules: (rules: AreaRule[]) => void;
   setAreaImage: (image: string | null) => void;
   setAreaDescription: (desc: string) => void;
   selectDelivery: (id: string | null) => void;
   setUploadedFileName: (name: string) => void;
-  setDriverFilter: (filter: Set<string> | null) => void;
-  toggleDriverFilter: (driverName: string) => void;
   setProcessing: (step: string) => void;
   clearProcessing: () => void;
   toggleSelectDelivery: (id: string) => void;
   selectAllVisible: (ids: string[]) => void;
   clearSelection: () => void;
-  bulkAssignDriver: (ids: string[], driverName: string) => void;
-  // 新規メソッド
   setCourses: (courses: Course[]) => void;
   setVehicleSpecs: (specs: VehicleSpec[]) => void;
   updateCourseAssignment: (id: string, courseId: string | null) => void;
@@ -105,7 +94,6 @@ export const useDeliveryStore = create<DeliveryStore>()(
   persist(
     (set, get) => ({
       deliveries: [],
-      drivers: DEFAULT_DRIVERS,
       courses: DEFAULT_COURSES,
       vehicleSpecs: DEFAULT_VEHICLE_SPECS,
       areaRules: [],
@@ -113,7 +101,6 @@ export const useDeliveryStore = create<DeliveryStore>()(
       areaDescription: "",
       selectedDeliveryId: null,
       selectedDeliveryIds: new Set<string>(),
-      driverFilter: null,
       courseFilter: null,
       activeCourseIds: [],
       assignmentLog: [],
@@ -133,36 +120,15 @@ export const useDeliveryStore = create<DeliveryStore>()(
       },
       updateDelivery: (id, updates) =>
         set({ deliveries: get().deliveries.map((d) => (d.id === id ? { ...d, ...updates } : d)) }),
-      updateDriverAssignment: (id, driverName) => {
-        const driver = get().drivers.find((d) => d.name === driverName);
-        set({
-          deliveries: get().deliveries.map((d) =>
-            d.id === id ? { ...d, driverName, colorCode: driver?.color ?? null } : d
-          ),
-        });
-      },
       toggleUndelivered: (id) =>
         set({ deliveries: get().deliveries.map((d) => (d.id === id ? { ...d, isUndelivered: !d.isUndelivered } : d)) }),
       setMemo: (id, memo) =>
         set({ deliveries: get().deliveries.map((d) => (d.id === id ? { ...d, memo } : d)) }),
-      setDrivers: (drivers) => set({ drivers }),
       setAreaRules: (rules) => set({ areaRules: rules }),
       setAreaImage: (image) => set({ areaImage: image }),
       setAreaDescription: (desc) => set({ areaDescription: desc }),
       selectDelivery: (id) => set({ selectedDeliveryId: id }),
       setUploadedFileName: (name) => set({ uploadedFileName: name }),
-      setDriverFilter: (filter) => set({ driverFilter: filter }),
-      toggleDriverFilter: (driverName) => {
-        const current = get().driverFilter;
-        if (current === null) set({ driverFilter: new Set([driverName]) });
-        else {
-          const next = new Set(current);
-          if (next.has(driverName)) {
-            next.delete(driverName);
-            set({ driverFilter: next.size === 0 ? null : next });
-          } else { next.add(driverName); set({ driverFilter: next }); }
-        }
-      },
       setProcessing: (step) => set({ isProcessing: true, processingStep: step }),
       clearProcessing: () => set({ isProcessing: false, processingStep: "" }),
       toggleSelectDelivery: (id) => {
@@ -172,16 +138,6 @@ export const useDeliveryStore = create<DeliveryStore>()(
       },
       selectAllVisible: (ids) => set({ selectedDeliveryIds: new Set(ids) }),
       clearSelection: () => set({ selectedDeliveryIds: new Set<string>() }),
-      bulkAssignDriver: (ids, driverName) => {
-        const driver = get().drivers.find((d) => d.name === driverName);
-        const idSet = new Set(ids);
-        set({
-          deliveries: get().deliveries.map((d) =>
-            idSet.has(d.id) ? { ...d, driverName, colorCode: driver?.color ?? null } : d
-          ),
-          selectedDeliveryIds: new Set<string>(),
-        });
-      },
 
       setCourses: (courses) => set({ courses }),
       setVehicleSpecs: (specs) => set({ vehicleSpecs: specs }),
@@ -190,7 +146,7 @@ export const useDeliveryStore = create<DeliveryStore>()(
         set({
           deliveries: get().deliveries.map((d) =>
             d.id === id
-              ? { ...d, courseId, colorCode: course?.color ?? null, driverName: course?.name ?? null }
+              ? { ...d, courseId, colorCode: course?.color ?? null }
               : d
           ),
         });
@@ -201,7 +157,7 @@ export const useDeliveryStore = create<DeliveryStore>()(
         set({
           deliveries: get().deliveries.map((d) =>
             idSet.has(d.id)
-              ? { ...d, courseId, colorCode: course?.color ?? null, driverName: course?.name ?? null }
+              ? { ...d, courseId, colorCode: course?.color ?? null }
               : d
           ),
           selectedDeliveryIds: new Set<string>(),
@@ -225,7 +181,7 @@ export const useDeliveryStore = create<DeliveryStore>()(
       clearAssignmentResults: () =>
         set({
           deliveries: get().deliveries.map((d) => ({
-            ...d, courseId: null, driverName: null, colorCode: null, assignReason: "", unassignedReason: "",
+            ...d, courseId: null, colorCode: null, assignReason: "", unassignedReason: "",
           })),
           assignmentLog: [],
           capacityWarnings: [],

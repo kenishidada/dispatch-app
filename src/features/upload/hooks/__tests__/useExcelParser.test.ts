@@ -32,7 +32,8 @@ describe("parseExcelFile", () => {
       expect(result.deliveries[0].destinationName).toBe("届先A");
       expect(result.deliveries[0].volume).toBe(120);
       expect(result.deliveries[0].geocodeStatus).toBe("pending");
-      expect(result.deliveries[0].driverName).toBeNull();
+      expect(result.deliveries[0].courseId).toBeNull();
+      expect(result.deliveries[0].unassignedReason).toBe("");
       expect(result.deliveries[0].slips).toHaveLength(1);
       expect(result.deliveries[0].rawAddress).toBe("横浜市戸塚区");
     }

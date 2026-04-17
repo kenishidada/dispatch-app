@@ -43,8 +43,6 @@ export function AreaRuleEditor() {
       id: uuidv4(),
       region: newRegion.trim(),
       courseId: newRuleCourse,
-      driverName: "",
-      vehicleType: "light",
     };
     setAreaRules([...areaRules, rule]);
     setNewRegion("");

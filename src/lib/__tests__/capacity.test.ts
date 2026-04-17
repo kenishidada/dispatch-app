@@ -30,9 +30,9 @@ describe("checkCapacity", () => {
       id, factoryName: "", carrierCode: 0, carrierName: "",
       destinationCode: 0, destinationName: "", packageCount: 0, quantity: 0,
       caseCount: 0, assortQuantity: 0, actualWeight: weight, volume, addressCode: 0,
-      address: "", deliveryDate: "", slipNumber: 0, shippingNumber: 0,
-      shippingCategory: "", lat: 0, lng: 0, driverName: null, colorCode: null,
-      isUndelivered: false, memo: "", assignReason: "", geocodeStatus: "success",
+      address: "", rawAddress: "", deliveryDate: "", slipNumber: 0, shippingNumber: 0,
+      shippingCategory: "", slips: [], lat: 0, lng: 0, courseId: null, colorCode: null,
+      isUndelivered: false, memo: "", assignReason: "", unassignedReason: "", geocodeStatus: "success",
     };
   }
 
