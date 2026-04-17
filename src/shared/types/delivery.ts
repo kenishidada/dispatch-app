@@ -27,6 +27,10 @@ export type Delivery = {
   memo: string;
   assignReason: string;
   geocodeStatus: GeoCodeStatus;
+  rawAddress?: string;
+  slips?: SlipDetail[];
+  courseId?: string | null;
+  unassignedReason?: string;
 };
 
 export type Driver = {
@@ -40,6 +44,7 @@ export type AreaRule = {
   region: string;
   driverName: string;
   vehicleType: "2t" | "light";
+  courseId?: string;
 };
 
 export const DEFAULT_DRIVERS: Driver[] = [
@@ -49,4 +54,60 @@ export const DEFAULT_DRIVERS: Driver[] = [
   { name: "コース4（軽）", color: "#FF6D01", vehicleType: "light" },  // オレンジ
   { name: "2t-右", color: "#EA4335", vehicleType: "2t" },             // 赤（Google赤）
   { name: "2t-左", color: "#A142F4", vehicleType: "2t" },             // 紫
+];
+
+export type Course = {
+  id: string;
+  name: string;
+  vehicleType: "light" | "2t";
+  color: string;
+  defaultRegion: string;
+};
+
+export type VehicleSpec = {
+  vehicleType: "light" | "2t";
+  maxVolume: number;
+  maxWeight: number;
+  maxOrders: number;
+};
+
+export type SlipDetail = {
+  slipNumber: number;
+  shippingNumber: number;
+  packageCount: number;
+  quantity: number;
+  caseCount: number;
+  assortQuantity: number;
+  actualWeight: number;
+  volume: number;
+  factoryName: string;
+};
+
+export type AssignmentLogEntry = {
+  step: number;
+  title: string;
+  message: string;
+  timestamp: number;
+};
+
+export type CapacityWarning = {
+  courseId: string;
+  type: "volume" | "weight" | "orders";
+  current: number;
+  limit: number;
+  message: string;
+};
+
+export const DEFAULT_COURSES: Course[] = [
+  { id: "light-1", name: "軽1", vehicleType: "light", color: "#34A853", defaultRegion: "" },
+  { id: "light-2", name: "軽2", vehicleType: "light", color: "#4285F4", defaultRegion: "" },
+  { id: "light-3", name: "軽3", vehicleType: "light", color: "#F9AB00", defaultRegion: "" },
+  { id: "light-4", name: "軽4", vehicleType: "light", color: "#FF6D01", defaultRegion: "" },
+  { id: "truck-1", name: "2t1", vehicleType: "2t", color: "#EA4335", defaultRegion: "" },
+  { id: "truck-2", name: "2t2", vehicleType: "2t", color: "#A142F4", defaultRegion: "" },
+];
+
+export const DEFAULT_VEHICLE_SPECS: VehicleSpec[] = [
+  { vehicleType: "light", maxVolume: 4500, maxWeight: 1050, maxOrders: 25 },
+  { vehicleType: "2t", maxVolume: 10000, maxWeight: 2000, maxOrders: 10 },
 ];
