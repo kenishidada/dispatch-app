@@ -8,8 +8,11 @@ import { useDeliveryStore } from "@/shared/store/deliveryStore";
 import { PinDetailPanel } from "@/features/map/components/PinDetailPanel";
 import { DeliveryListPanel } from "@/features/map/components/DeliveryListPanel";
 import { GeocodingErrorList } from "@/features/map/components/GeocodingErrorList";
-import { DriverFilterBar } from "@/features/assignment/components/DriverFilterBar";
-import { DriverSummary } from "@/features/assignment/components/DriverSummary";
+import { CourseFilterBar } from "@/features/assignment/components/CourseFilterBar";
+import { CourseSummary } from "@/features/assignment/components/CourseSummary";
+import { AssignmentLogPanel } from "@/features/assignment/components/AssignmentLogPanel";
+import { CapacityWarningPanel } from "@/features/assignment/components/CapacityWarningPanel";
+import { RerunButton } from "@/features/assignment/components/RerunButton";
 import { usePdfGenerate } from "@/features/pdf/hooks/usePdfGenerate";
 import { MapDropzone, type MapDropzoneHandle } from "@/features/upload/components/MapDropzone";
 
@@ -22,26 +25,26 @@ export default function MapPage() {
   const deliveries = useDeliveryStore((s) => s.deliveries);
   const isProcessing = useDeliveryStore((s) => s.isProcessing);
   const uploadedFileName = useDeliveryStore((s) => s.uploadedFileName);
-  const driverFilter = useDeliveryStore((s) => s.driverFilter);
+  const courseFilter = useDeliveryStore((s) => s.courseFilter);
   const { generatePdf } = usePdfGenerate();
   const [shareUrl, setShareUrl] = useState<string | null>(null);
   const dropzoneRef = useRef<MapDropzoneHandle>(null);
 
   const handleShare = async () => {
-    const currentFilter = useDeliveryStore.getState().driverFilter;
+    const currentFilter = useDeliveryStore.getState().courseFilter;
     let shareDeliveries = deliveries;
 
     if (currentFilter !== null) {
       shareDeliveries = deliveries.filter((d) => {
-        if (currentFilter.has("__unassigned__") && !d.driverName) return true;
-        return d.driverName !== null && currentFilter.has(d.driverName);
+        if (currentFilter.has("__unassigned__") && d.courseId == null) return true;
+        return d.courseId != null && currentFilter.has(d.courseId);
       });
     }
 
     const res = await fetch("/api/share", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ deliveries: shareDeliveries, drivers: useDeliveryStore.getState().drivers }),
+      body: JSON.stringify({ deliveries: shareDeliveries, courses: useDeliveryStore.getState().courses }),
     });
     const data = await res.json();
     const url = `${window.location.origin}/view/${data.sessionId}`;
@@ -67,10 +70,10 @@ export default function MapPage() {
             <Button variant="outline" size="sm">設定</Button>
           </Link>
           <Button variant="outline" size="sm" onClick={handleShare}>
-            {shareUrl ? "コピーしました!" : (driverFilter ? "共有リンク生成（選択中）" : "共有リンク生成（全件）")}
+            {shareUrl ? "コピーしました!" : (courseFilter ? "共有リンク生成（選択中）" : "共有リンク生成（全件）")}
           </Button>
           <Button size="sm" onClick={generatePdf}>
-            {driverFilter ? "PDF出力（選択中）" : "PDF出力（全件）"}
+            {courseFilter ? "PDF出力（選択中）" : "PDF出力（全件）"}
           </Button>
         </div>
       </header>
@@ -90,15 +93,18 @@ export default function MapPage() {
           </MapDropzone>
         </div>
         <div className="w-80 border-l bg-white overflow-y-auto flex flex-col">
-          <DriverFilterBar />
-          <DriverSummary />
+          <CourseFilterBar />
+          <CourseSummary />
+          <CapacityWarningPanel />
+          <AssignmentLogPanel />
+          <RerunButton />
           <PinDetailPanel />
           <DeliveryListPanel />
         </div>
       </div>
 
       <footer className="px-4 py-2 bg-white border-t text-sm text-gray-600">
-        <div>全{deliveries.length}件 / 未割当{deliveries.filter((d) => !d.driverName).length}件 / 未配{deliveries.filter((d) => d.isUndelivered).length}件</div>
+        <div>全{deliveries.length}件 / 未割当{deliveries.filter((d) => d.courseId == null).length}件 / 未配{deliveries.filter((d) => d.isUndelivered).length}件</div>
         <GeocodingErrorList />
       </footer>
     </div>

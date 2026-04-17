@@ -8,13 +8,13 @@ import "leaflet/dist/leaflet.css";
 
 export function DeliveryMap() {
   const deliveries = useDeliveryStore((s) => s.deliveries);
-  const driverFilter = useDeliveryStore((s) => s.driverFilter);
+  const courseFilter = useDeliveryStore((s) => s.courseFilter);
 
   const filteredDeliveries = deliveries.filter((d) => {
     if (d.geocodeStatus !== "success") return false;
-    if (driverFilter === null) return true;
-    if (driverFilter.has("__unassigned__") && !d.driverName) return true;
-    return d.driverName !== null && driverFilter.has(d.driverName);
+    if (courseFilter === null) return true;
+    if (courseFilter.has("__unassigned__") && d.courseId == null) return true;
+    return d.courseId != null && courseFilter.has(d.courseId);
   });
 
   const center: [number, number] =

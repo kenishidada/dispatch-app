@@ -10,8 +10,8 @@ import { Separator } from "@/components/ui/separator";
 export function PinDetailPanel() {
   const selectedId = useDeliveryStore((s) => s.selectedDeliveryId);
   const deliveries = useDeliveryStore((s) => s.deliveries);
-  const drivers = useDeliveryStore((s) => s.drivers);
-  const updateDriverAssignment = useDeliveryStore((s) => s.updateDriverAssignment);
+  const courses = useDeliveryStore((s) => s.courses);
+  const updateCourseAssignment = useDeliveryStore((s) => s.updateCourseAssignment);
   const toggleUndelivered = useDeliveryStore((s) => s.toggleUndelivered);
   const setMemo = useDeliveryStore((s) => s.setMemo);
 
@@ -51,23 +51,25 @@ export function PinDetailPanel() {
       <Separator />
 
       <div>
-        <Label className="text-xs text-gray-500">担当ドライバー</Label>
+        <Label className="text-xs text-gray-500">担当コース</Label>
         <Select
-          value={delivery.driverName || ""}
-          onValueChange={(value: string | null) => { if (value) updateDriverAssignment(delivery.id, value); }}
+          value={delivery.courseId ?? ""}
+          onValueChange={(value: string | null) => {
+            updateCourseAssignment(delivery.id, value ?? null);
+          }}
         >
           <SelectTrigger className="mt-1">
             <SelectValue placeholder="未割当" />
           </SelectTrigger>
           <SelectContent>
-            {drivers.map((driver) => (
-              <SelectItem key={driver.name} value={driver.name}>
+            {courses.map((course) => (
+              <SelectItem key={course.id} value={course.id}>
                 <span className="flex items-center gap-2">
                   <span
                     className="inline-block w-3 h-3 rounded-full"
-                    style={{ backgroundColor: driver.color }}
+                    style={{ backgroundColor: course.color }}
                   />
-                  {driver.name}
+                  {course.name}
                 </span>
               </SelectItem>
             ))}
@@ -77,6 +79,22 @@ export function PinDetailPanel() {
           <p className="text-xs text-gray-400 mt-1">{delivery.assignReason}</p>
         )}
       </div>
+
+      {delivery.slips && delivery.slips.length > 0 && (
+        <table className="text-xs w-full mt-2">
+          <thead><tr><th>伝票No</th><th>個口</th><th>容積</th><th>重量</th></tr></thead>
+          <tbody>
+            {delivery.slips.map((s) => (
+              <tr key={s.slipNumber}>
+                <td>{s.slipNumber}</td>
+                <td>{s.packageCount}</td>
+                <td>{s.volume}</td>
+                <td>{s.actualWeight}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
 
       <div className="flex items-center justify-between">
         <Label className="text-xs text-gray-500">未配</Label>
