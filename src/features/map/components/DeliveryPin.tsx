@@ -33,12 +33,12 @@ export function DeliveryPin({ delivery }: Props) {
   const updateCourseAssignment = useDeliveryStore((s) => s.updateCourseAssignment);
   const courses = useDeliveryStore((s) => s.courses);
 
-  if (delivery.lat == null || delivery.lng == null) return null;
-
   const color = delivery.colorCode || "#9CA3AF";
   const isLarge = delivery.volume >= 1000;
   const isUnassigned = delivery.courseId == null;
   const icon = useMemo(() => createPinIcon(color, isLarge, isUnassigned), [color, isLarge, isUnassigned]);
+
+  if (delivery.lat == null || delivery.lng == null) return null;
 
   return (
     <Marker
