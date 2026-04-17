@@ -317,8 +317,8 @@ const lightCandidates = deliveries.filter(d => d.volume < TRUCK_THRESHOLD);
 
 新規ファイル `src/lib/clustering.ts` に DBSCAN 実装。
 
-- `eps = 5km`（環境変数 `NEXT_PUBLIC_DBSCAN_EPS_KM` で上書き可能、デフォルト 5）
-- `minPts = 2`（環境変数 `NEXT_PUBLIC_DBSCAN_MIN_PTS` で上書き可能、デフォルト 2）
+- `eps = 5km`（環境変数 `DBSCAN_EPS_KM` で上書き可能、デフォルト 5）※サーバー専用変数（`NEXT_PUBLIC_` プレフィックスなし）
+- `minPts = 2`（環境変数 `DBSCAN_MIN_PTS` で上書き可能、デフォルト 2）※サーバー専用変数
 - ノイズ点（cluster_id=-1）は単独クラスタとして扱う
 - 結果は `Map<deliveryId, clusterId>` として段階3-4 のプロンプトに渡す
 
@@ -474,11 +474,13 @@ function normalizeAddress(s: string): string {
 
 **先方発言「本来153件」との1件差について**: 実データで生文字列 152、正規化後 152 と変化なし。建物名除去（最初の空白で切る）すると151件。先方の153件は記憶ベースの推定値であり、実データの152件が正しい集約結果と判断する。
 
-合計値検証:
+合計値検証（実測値）:
 - 合計容積: 65,483 L
 - 合計重量: 15,702 kg
-- 大口（≥1500L）: 14件
-- 軽対象（<1500L）: 138件
+- 大口（≥1500L）: **9件**
+- 軽対象（<1500L）: **143件**
+
+**閾値導出**: トラック判定閾値 = `light maxVolume / 3 = 4500 / 3 = 1500L`。旧 `gemini.ts` は `>= 1000L` をハードコードしており（→ 14件）、本設計で `vehicleSpec` ベースに整合させた。
 
 ## 7. UI/UX 変更
 
@@ -599,8 +601,8 @@ Excel ドロップ
 | キー | 用途 | 設定方法 |
 |---|---|---|
 | `GEMINI_API_KEY` | Gemini API（既存値） | Vercel から手動コピー |
-| `NEXT_PUBLIC_DBSCAN_EPS_KM` | DBSCAN 半径（任意、デフォルト5） | 必要時のみ設定 |
-| `NEXT_PUBLIC_DBSCAN_MIN_PTS` | DBSCAN 最小点数（任意、デフォルト2） | 必要時のみ設定 |
+| `DBSCAN_EPS_KM` | DBSCAN 半径（任意、デフォルト5）※サーバー専用 | 必要時のみ設定 |
+| `DBSCAN_MIN_PTS` | DBSCAN 最小点数（任意、デフォルト2）※サーバー専用 | 必要時のみ設定 |
 | `PORT` | HTTP リスニング | Railway 自動注入、設定不要 |
 
 ### 9.3 ロールバック手順

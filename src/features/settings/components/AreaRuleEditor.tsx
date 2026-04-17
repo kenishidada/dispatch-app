@@ -9,10 +9,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Card } from "@/components/ui/card";
-import { Driver, AreaRule } from "@/shared/types/delivery";
+import { AreaRule } from "@/shared/types/delivery";
 
 export function AreaRuleEditor() {
-  const { drivers, setDrivers, areaRules, setAreaRules, areaImage, setAreaImage, areaDescription, setAreaDescription } = useDeliveryStore();
+  const { courses, areaRules, setAreaRules, areaImage, setAreaImage, areaDescription, setAreaDescription } = useDeliveryStore();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [isDragOver, setIsDragOver] = useState(false);
@@ -30,80 +30,23 @@ export function AreaRuleEditor() {
     e.target.value = "";
   };
 
-  const [editingDriver, setEditingDriver] = useState<string | null>(null);
-  const [editName, setEditName] = useState("");
-  const [editColor, setEditColor] = useState("");
-
-  const startEdit = (driver: Driver) => {
-    setEditingDriver(driver.name);
-    setEditName(driver.name);
-    setEditColor(driver.color);
-  };
-
-  const saveEdit = (originalName: string) => {
-    if (!editName.trim()) return;
-    const updated = drivers.map((d) =>
-      d.name === originalName
-        ? { ...d, name: editName.trim(), color: editColor }
-        : d
-    );
-    setDrivers(updated);
-    // Update deliveries assigned to the old driver name
-    const { deliveries, setDeliveries } = useDeliveryStore.getState();
-    if (editName.trim() !== originalName) {
-      setDeliveries(
-        deliveries.map((del) =>
-          del.driverName === originalName
-            ? { ...del, driverName: editName.trim(), colorCode: editColor }
-            : del
-        )
-      );
-    } else {
-      // Color changed only - update colorCode
-      setDeliveries(
-        deliveries.map((del) =>
-          del.driverName === originalName
-            ? { ...del, colorCode: editColor }
-            : del
-        )
-      );
-    }
-    setEditingDriver(null);
-  };
-
-  const [newDriverName, setNewDriverName] = useState("");
-  const [newDriverColor, setNewDriverColor] = useState("#FF6B6B");
-  const [newDriverVehicle, setNewDriverVehicle] = useState<"2t" | "light">("light");
-
-  const addDriver = () => {
-    if (!newDriverName.trim()) return;
-    const newDriver: Driver = {
-      name: newDriverName.trim(),
-      color: newDriverColor,
-      vehicleType: newDriverVehicle,
-    };
-    setDrivers([...drivers, newDriver]);
-    setNewDriverName("");
-  };
-
-  const removeDriver = (name: string) => {
-    setDrivers(drivers.filter((d) => d.name !== name));
-  };
-
   const [newRegion, setNewRegion] = useState("");
-  const [newRuleDriver, setNewRuleDriver] = useState("");
-  const [newRuleVehicle, setNewRuleVehicle] = useState<"2t" | "light">("light");
+  const [newRuleCourse, setNewRuleCourse] = useState("");
+
+  const updateRule = (id: string, partial: Partial<AreaRule>) => {
+    setAreaRules(areaRules.map((r) => (r.id === id ? { ...r, ...partial } : r)));
+  };
 
   const addAreaRule = () => {
-    if (!newRegion.trim() || !newRuleDriver) return;
+    if (!newRegion.trim() || !newRuleCourse) return;
     const rule: AreaRule = {
       id: uuidv4(),
       region: newRegion.trim(),
-      driverName: newRuleDriver,
-      vehicleType: newRuleVehicle,
+      courseId: newRuleCourse,
     };
     setAreaRules([...areaRules, rule]);
     setNewRegion("");
+    setNewRuleCourse("");
   };
 
   const removeAreaRule = (id: string) => {
@@ -169,85 +112,12 @@ export function AreaRuleEditor() {
       </Card>
 
       <Card className="p-6">
-        <h2 className="text-lg font-bold mb-2">ドライバー管理</h2>
-        <p className="text-sm text-muted-foreground mb-4">ドライバーの名前・色・車両タイプを編集できます。変更は即座に反映されます。</p>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>名前</TableHead>
-              <TableHead>色</TableHead>
-              <TableHead>車両</TableHead>
-              <TableHead></TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {drivers.map((d) => (
-              <TableRow key={d.name}>
-                {editingDriver === d.name ? (
-                  <>
-                    <TableCell>
-                      <Input
-                        value={editName}
-                        onChange={(e) => setEditName(e.target.value)}
-                        onKeyDown={(e) => { if (e.key === "Enter") saveEdit(d.name); }}
-                        className="h-8"
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <Input type="color" value={editColor} onChange={(e) => setEditColor(e.target.value)} className="w-16 h-8" />
-                    </TableCell>
-                    <TableCell>{d.vehicleType === "2t" ? "2tトラック" : "軽自動車"}</TableCell>
-                    <TableCell>
-                      <div className="flex gap-1">
-                        <Button size="sm" onClick={() => saveEdit(d.name)}>保存</Button>
-                        <Button variant="ghost" size="sm" onClick={() => setEditingDriver(null)}>取消</Button>
-                      </div>
-                    </TableCell>
-                  </>
-                ) : (
-                  <>
-                    <TableCell className="flex items-center gap-2">
-                      <span className="w-4 h-4 rounded-full inline-block" style={{ backgroundColor: d.color }} />
-                      {d.name}
-                    </TableCell>
-                    <TableCell>{d.color}</TableCell>
-                    <TableCell>{d.vehicleType === "2t" ? "2tトラック" : "軽自動車"}</TableCell>
-                    <TableCell>
-                      <div className="flex gap-1">
-                        <Button variant="outline" size="sm" onClick={() => startEdit(d)}>編集</Button>
-                        <Button variant="ghost" size="sm" className="text-red-500" onClick={() => removeDriver(d.name)}>
-                          削除
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </>
-                )}
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-        <div className="flex gap-2 mt-4">
-          <Input placeholder="ドライバー名" value={newDriverName} onChange={(e) => setNewDriverName(e.target.value)} className="flex-1" />
-          <Input type="color" value={newDriverColor} onChange={(e) => setNewDriverColor(e.target.value)} className="w-16" />
-          <Select value={newDriverVehicle} onValueChange={(v) => setNewDriverVehicle(v as "2t" | "light")}>
-            <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="light">軽自動車</SelectItem>
-              <SelectItem value="2t">2tトラック</SelectItem>
-            </SelectContent>
-          </Select>
-          <Button onClick={addDriver}>追加</Button>
-        </div>
-      </Card>
-
-      <Card className="p-6">
         <h2 className="text-lg font-bold mb-4">エリアルール</h2>
         <Table>
           <TableHeader>
             <TableRow>
               <TableHead>地域</TableHead>
-              <TableHead>ドライバー</TableHead>
-              <TableHead>車両</TableHead>
+              <TableHead>コース</TableHead>
               <TableHead></TableHead>
             </TableRow>
           </TableHeader>
@@ -255,8 +125,23 @@ export function AreaRuleEditor() {
             {areaRules.map((r) => (
               <TableRow key={r.id}>
                 <TableCell>{r.region}</TableCell>
-                <TableCell>{r.driverName}</TableCell>
-                <TableCell>{r.vehicleType === "2t" ? "2tトラック" : "軽自動車"}</TableCell>
+                <TableCell>
+                  <Select
+                    value={r.courseId ?? ""}
+                    onValueChange={(v) => updateRule(r.id, { courseId: v ?? "" })}
+                  >
+                    <SelectTrigger className="w-48">
+                      <SelectValue placeholder="コースを選択" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {courses.map((c) => (
+                        <SelectItem key={c.id} value={c.id}>
+                          {c.name}（{c.vehicleType === "2t" ? "2t" : "軽"}）
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </TableCell>
                 <TableCell>
                   <Button variant="ghost" size="sm" className="text-red-500" onClick={() => removeAreaRule(r.id)}>
                     削除
@@ -268,19 +153,16 @@ export function AreaRuleEditor() {
         </Table>
         <div className="flex gap-2 mt-4">
           <Input placeholder="地域名（例: 横浜市戸塚区）" value={newRegion} onChange={(e) => setNewRegion(e.target.value)} className="flex-1" />
-          <Select value={newRuleDriver} onValueChange={(v) => setNewRuleDriver(v ?? "")}>
-            <SelectTrigger className="w-40"><SelectValue placeholder="ドライバー" /></SelectTrigger>
+          <Select value={newRuleCourse} onValueChange={(v) => setNewRuleCourse(v ?? "")}>
+            <SelectTrigger className="w-48">
+              <SelectValue placeholder="コースを選択" />
+            </SelectTrigger>
             <SelectContent>
-              {drivers.map((d) => (
-                <SelectItem key={d.name} value={d.name}>{d.name}</SelectItem>
+              {courses.map((c) => (
+                <SelectItem key={c.id} value={c.id}>
+                  {c.name}（{c.vehicleType === "2t" ? "2t" : "軽"}）
+                </SelectItem>
               ))}
-            </SelectContent>
-          </Select>
-          <Select value={newRuleVehicle} onValueChange={(v) => setNewRuleVehicle(v as "2t" | "light")}>
-            <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="light">軽自動車</SelectItem>
-              <SelectItem value="2t">2tトラック</SelectItem>
             </SelectContent>
           </Select>
           <Button onClick={addAreaRule}>追加</Button>

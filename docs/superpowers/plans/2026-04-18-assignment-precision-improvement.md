@@ -1099,8 +1099,8 @@ export type AutoAssignOutput = {
   capacityWarnings: CapacityWarning[];
 };
 
-const EPS_KM = Number(process.env.NEXT_PUBLIC_DBSCAN_EPS_KM ?? 5);
-const MIN_PTS = Number(process.env.NEXT_PUBLIC_DBSCAN_MIN_PTS ?? 2);
+const EPS_KM = Number(process.env.DBSCAN_EPS_KM || "5");
+const MIN_PTS = Number(process.env.DBSCAN_MIN_PTS || "2");
 
 function appendLog(log: AssignmentLogEntry[], step: number, title: string, message: string): void {
   log.push({ step, title, message, timestamp: Date.now() });
@@ -1661,7 +1661,8 @@ export function CourseEditor() {
     const existingNumbers = courses
       .filter((c) => c.vehicleType === vehicleType)
       .map((c) => {
-        const m = c.id.match(new RegExp(`^${prefix}-(\\d+)$`));
+        // 初期 ID (truck-1) と追加後 ID (truck-3-abcd) の両方に対応
+        const m = c.id.match(new RegExp(`^${prefix}-(\\d+)(?:-[a-z0-9]+)?$`));
         return m ? Number(m[1]) : 0;
       });
     const nextNumber = Math.max(0, ...existingNumbers) + 1;
@@ -2097,11 +2098,11 @@ import { useAutoAssign } from "@/features/assignment/hooks/useAutoAssign";
 import { useDeliveryStore } from "@/shared/store/deliveryStore";
 
 export function RerunButton() {
-  const { run } = useAutoAssign();
+  const { runAssign } = useAutoAssign();
   const { isProcessing, clearAssignmentResults } = useDeliveryStore();
   const rerun = async () => {
     clearAssignmentResults();
-    await run();
+    await runAssign();
   };
   return (
     <button
@@ -2607,7 +2608,7 @@ git commit -m "feat: cache image-derived area rules with image+courses hash key"
 ## 前提
 - Node.js 20.x（package.json の `engines` で指定）
 - ビルダー: Nixpacks（自動検出）
-- 環境変数: `GEMINI_API_KEY`（必須）、`NEXT_PUBLIC_DBSCAN_EPS_KM`（任意、デフォルト5）、`NEXT_PUBLIC_DBSCAN_MIN_PTS`（任意、デフォルト2）
+- 環境変数: `GEMINI_API_KEY`（必須）、`DBSCAN_EPS_KM`（任意、デフォルト5、サーバー専用）、`DBSCAN_MIN_PTS`（任意、デフォルト2、サーバー専用）
 
 ## 移行手順
 1. Railway アカウント / プロジェクトを作成

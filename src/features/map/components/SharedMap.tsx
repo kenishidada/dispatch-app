@@ -2,7 +2,7 @@
 
 import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
 import L from "leaflet";
-import { Delivery, Driver } from "@/shared/types/delivery";
+import { Delivery, Course } from "@/shared/types/delivery";
 import "leaflet/dist/leaflet.css";
 
 function createPinIcon(color: string, isLarge: boolean): L.DivIcon {
@@ -22,10 +22,10 @@ function createPinIcon(color: string, isLarge: boolean): L.DivIcon {
 
 type Props = {
   deliveries: Delivery[];
-  drivers: Driver[];
+  courses: Course[];
 };
 
-export function SharedMap({ deliveries, drivers }: Props) {
+export function SharedMap({ deliveries, courses }: Props) {
   const plotted = deliveries.filter((d) => d.lat != null && d.lng != null);
   const center: [number, number] = plotted.length > 0
     ? [plotted[0].lat!, plotted[0].lng!]
@@ -38,7 +38,8 @@ export function SharedMap({ deliveries, drivers }: Props) {
         url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
       />
       {plotted.map((d) => {
-        const color = d.colorCode || "#9CA3AF";
+        const course = courses.find((c) => c.id === d.courseId);
+        const color = d.colorCode || course?.color || "#9CA3AF";
         const icon = createPinIcon(color, d.volume >= 1000);
         return (
           <Marker key={d.id} position={[d.lat!, d.lng!]} icon={icon}>
@@ -47,7 +48,7 @@ export function SharedMap({ deliveries, drivers }: Props) {
                 <p className="font-bold">{d.destinationName}</p>
                 <p>{d.address}</p>
                 <p>容積: {d.volume}L / 重量: {d.actualWeight}kg</p>
-                {d.driverName && <p>担当: {d.driverName}</p>}
+                {course && <p>担当: {course.name}</p>}
               </div>
             </Popup>
           </Marker>
