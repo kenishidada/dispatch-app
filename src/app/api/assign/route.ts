@@ -1,26 +1,34 @@
 import { NextRequest, NextResponse } from "next/server";
 import { autoAssign } from "@/lib/gemini";
-import { Delivery, Driver, AreaRule } from "@/shared/types/delivery";
-
-export const maxDuration = 300;
+import { Delivery, Course, AreaRule, VehicleSpec } from "@/shared/types/delivery";
 
 export async function POST(request: NextRequest) {
   const body = await request.json();
-  const { deliveries, drivers, areaRules, areaImage, areaDescription } = body as {
+  const {
+    deliveries, courses, activeCourseIds, vehicleSpecs, areaRules, areaImage, areaDescription,
+  } = body as {
     deliveries: Delivery[];
-    drivers: Driver[];
+    courses: Course[];
+    activeCourseIds: string[];
+    vehicleSpecs: VehicleSpec[];
     areaRules: AreaRule[];
     areaImage: string | null;
     areaDescription: string;
   };
 
-  if (!deliveries || !drivers) {
-    return NextResponse.json({ error: "deliveries and drivers are required" }, { status: 400 });
+  if (!deliveries || !courses || !activeCourseIds || !vehicleSpecs) {
+    return NextResponse.json(
+      { error: "deliveries, courses, activeCourseIds, vehicleSpecs are required" },
+      { status: 400 }
+    );
   }
 
-  const assignments = await autoAssign(deliveries, drivers, areaRules || [], areaImage || null, areaDescription || "");
-  console.log("[assign] drivers received:", drivers.map(d => d.name));
-  console.log("[assign] sample assignments:", assignments.slice(0, 3));
-  console.log("[assign] assigned count:", assignments.filter(a => a.driverName).length, "/", assignments.length);
-  return NextResponse.json({ assignments });
+  const output = await autoAssign(
+    deliveries, courses, activeCourseIds, vehicleSpecs,
+    areaRules || [], areaImage || null, areaDescription || ""
+  );
+  console.log("[assign] active courses:", activeCourseIds);
+  console.log("[assign] assigned:", output.assignments.filter((a) => a.courseId).length, "/", output.assignments.length);
+  console.log("[assign] warnings:", output.capacityWarnings.length);
+  return NextResponse.json(output);
 }
