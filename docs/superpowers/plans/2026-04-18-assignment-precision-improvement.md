@@ -1661,7 +1661,8 @@ export function CourseEditor() {
     const existingNumbers = courses
       .filter((c) => c.vehicleType === vehicleType)
       .map((c) => {
-        const m = c.id.match(new RegExp(`^${prefix}-(\\d+)$`));
+        // 初期 ID (truck-1) と追加後 ID (truck-3-abcd) の両方に対応
+        const m = c.id.match(new RegExp(`^${prefix}-(\\d+)(?:-[a-z0-9]+)?$`));
         return m ? Number(m[1]) : 0;
       });
     const nextNumber = Math.max(0, ...existingNumbers) + 1;
@@ -2097,11 +2098,11 @@ import { useAutoAssign } from "@/features/assignment/hooks/useAutoAssign";
 import { useDeliveryStore } from "@/shared/store/deliveryStore";
 
 export function RerunButton() {
-  const { run } = useAutoAssign();
+  const { runAssign } = useAutoAssign();
   const { isProcessing, clearAssignmentResults } = useDeliveryStore();
   const rerun = async () => {
     clearAssignmentResults();
-    await run();
+    await runAssign();
   };
   return (
     <button
