@@ -53,6 +53,16 @@ describe("checkCapacity", () => {
     expect(w[0].limit).toBe(4500);
   });
 
+  it("reports weight overage", () => {
+    const deliveries = [makeDelivery("d1", 100, 2000)];
+    const assignments = [{ deliveryId: "d1", courseId: "light-1" }];
+    const w = checkCapacity(assignments, deliveries, courses, specs, ["light-1"]);
+    const weight = w.find((x) => x.type === "weight");
+    expect(weight).toBeDefined();
+    expect(weight!.current).toBe(2000);
+    expect(weight!.limit).toBe(1050);
+  });
+
   it("reports order count overage", () => {
     const deliveries = Array.from({ length: 26 }, (_, i) => makeDelivery(`d${i}`, 100, 10));
     const assignments = deliveries.map((d) => ({ deliveryId: d.id, courseId: "light-1" }));
