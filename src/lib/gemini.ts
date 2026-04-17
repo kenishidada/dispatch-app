@@ -21,8 +21,19 @@ export type AutoAssignOutput = {
   capacityWarnings: CapacityWarning[];
 };
 
-const EPS_KM = Number(process.env.DBSCAN_EPS_KM || "5");
-const MIN_PTS = Number(process.env.DBSCAN_MIN_PTS || "2");
+function readNumericEnv(name: string, defaultValue: number): number {
+  const raw = process.env[name];
+  if (!raw) return defaultValue;
+  const parsed = Number(raw);
+  if (Number.isNaN(parsed)) {
+    console.warn(`[gemini] ${name}="${raw}" is not a number, falling back to ${defaultValue}`);
+    return defaultValue;
+  }
+  return parsed;
+}
+
+const EPS_KM = readNumericEnv("DBSCAN_EPS_KM", 5);
+const MIN_PTS = readNumericEnv("DBSCAN_MIN_PTS", 2);
 
 function appendLog(log: AssignmentLogEntry[], step: number, title: string, message: string): void {
   log.push({ step, title, message, timestamp: Date.now() });
