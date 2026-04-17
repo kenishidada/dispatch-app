@@ -19,6 +19,7 @@ export type AutoAssignOutput = {
   assignments: AssignmentResult[];
   assignmentLog: AssignmentLogEntry[];
   capacityWarnings: CapacityWarning[];
+  imageRulesText: string | null;
 };
 
 function readNumericEnv(name: string, defaultValue: number): number {
@@ -203,15 +204,24 @@ export async function autoAssign(
   vehicleSpecs: VehicleSpec[],
   areaRules: AreaRule[],
   areaImage: string | null,
-  areaDescription: string
+  areaDescription: string,
+  prefetchedImageRules: string | null = null
 ): Promise<AutoAssignOutput> {
   const log: AssignmentLogEntry[] = [];
 
-  // 段階0: 画像→テキスト変換
+  // 段階0: 画像→テキスト変換（キャッシュがあればスキップ）
   let effectiveDescription = areaDescription;
-  if (areaImage) {
+  let imageRulesText: string | null = null;
+  if (prefetchedImageRules) {
+    imageRulesText = prefetchedImageRules;
+    effectiveDescription = effectiveDescription
+      ? `${effectiveDescription}\n\n【画像から読み取ったエリアルール】\n${prefetchedImageRules}`
+      : prefetchedImageRules;
+    appendLog(log, 0, "画像ルール変換", `キャッシュから ${prefetchedImageRules.length} 文字のルールを使用`);
+  } else if (areaImage) {
     const imageRules = await extractAreaRulesFromImage(areaImage, courses);
     if (imageRules) {
+      imageRulesText = imageRules;
       effectiveDescription = effectiveDescription
         ? `${effectiveDescription}\n\n【画像から読み取ったエリアルール】\n${imageRules}`
         : imageRules;
@@ -321,5 +331,5 @@ export async function autoAssign(
   const corrections = reviewed.filter((r, i) => r.courseId !== allAssignments[i].courseId).length;
   appendLog(log, 6, "地理整合性レビュー", `修正 ${corrections}件 (${((Date.now() - t0) / 1000).toFixed(1)}秒)`);
 
-  return { assignments: reviewed, assignmentLog: log, capacityWarnings: warnings };
+  return { assignments: reviewed, assignmentLog: log, capacityWarnings: warnings, imageRulesText };
 }

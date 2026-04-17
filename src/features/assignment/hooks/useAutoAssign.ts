@@ -3,11 +3,13 @@
 import { useCallback } from "react";
 import { useDeliveryStore } from "@/shared/store/deliveryStore";
 import type { AssignmentLogEntry, CapacityWarning, Delivery } from "@/shared/types/delivery";
+import { getCachedImageRules, setCachedImageRules } from "@/lib/imageCache";
 
 type ApiResponse = {
   assignments: { deliveryId: string; courseId: string | null; reason: string; unassignedReason: string }[];
   assignmentLog: AssignmentLogEntry[];
   capacityWarnings: CapacityWarning[];
+  imageRulesText: string | null;
 };
 
 export function useAutoAssign() {
@@ -58,15 +60,30 @@ export function useAutoAssign() {
     const { deliveries, courses, activeCourseIds, vehicleSpecs, areaRules, areaImage, areaDescription } = state;
     setProcessing("AIで振り分け中...");
     try {
+      let prefetchedImageRules: string | null = null;
+      let imageToSend = areaImage;
+      let cacheKey: string | null = null;
+      if (areaImage) {
+        const { key, cached } = await getCachedImageRules(areaImage, courses);
+        cacheKey = key;
+        if (cached) {
+          prefetchedImageRules = cached;
+          imageToSend = null;
+        }
+      }
       const res = await fetch("/api/assign", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          deliveries, courses, activeCourseIds, vehicleSpecs, areaRules, areaImage, areaDescription,
+          deliveries, courses, activeCourseIds, vehicleSpecs, areaRules,
+          areaImage: imageToSend, areaDescription, prefetchedImageRules,
         }),
       });
       if (!res.ok) throw new Error(`API error ${res.status}`);
       const data = (await res.json()) as ApiResponse;
+      if (cacheKey && !prefetchedImageRules && data.imageRulesText) {
+        setCachedImageRules(cacheKey, data.imageRulesText);
+      }
       const courseMap = new Map(courses.map((c) => [c.id, c]));
       const assignMap = new Map(data.assignments.map((a) => [a.deliveryId, a]));
       const updated = deliveries.map((d) => {
