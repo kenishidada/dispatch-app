@@ -21,8 +21,8 @@ export type AutoAssignOutput = {
   capacityWarnings: CapacityWarning[];
 };
 
-const EPS_KM = Number(process.env.NEXT_PUBLIC_DBSCAN_EPS_KM ?? 5);
-const MIN_PTS = Number(process.env.NEXT_PUBLIC_DBSCAN_MIN_PTS ?? 2);
+const EPS_KM = Number(process.env.DBSCAN_EPS_KM || "5");
+const MIN_PTS = Number(process.env.DBSCAN_MIN_PTS || "2");
 
 function appendLog(log: AssignmentLogEntry[], step: number, title: string, message: string): void {
   log.push({ step, title, message, timestamp: Date.now() });
@@ -233,13 +233,13 @@ export async function autoAssign(
 
   const truckCourses = courses.filter((c) => activeCourseIds.includes(c.id) && c.vehicleType === "2t");
   const lightCourses = courses.filter((c) => activeCourseIds.includes(c.id) && c.vehicleType === "light");
-  const truckSpec = vehicleSpecs.find((s) => s.vehicleType === "2t")!;
-  const lightSpec = vehicleSpecs.find((s) => s.vehicleType === "light")!;
+  const truckSpec = vehicleSpecs.find((s) => s.vehicleType === "2t") ?? null;
+  const lightSpec = vehicleSpecs.find((s) => s.vehicleType === "light") ?? null;
 
   const allAssignments: AssignmentResult[] = [];
 
   // 段階3: 2t割り当て（1バッチ）
-  if (truckCandidates.length > 0 && truckCourses.length > 0) {
+  if (truckCandidates.length > 0 && truckCourses.length > 0 && truckSpec) {
     const t0 = Date.now();
     const res = await callAssignBatch({
       deliveries: truckCandidates,
@@ -256,16 +256,18 @@ export async function autoAssign(
     const unassigned = res.length - assigned;
     appendLog(log, 3, "2t割り当て", `${assigned}件割当 / ${unassigned}件未割当 (${((Date.now() - t0) / 1000).toFixed(1)}秒)`);
   } else if (truckCandidates.length > 0) {
+    const reason = truckCourses.length === 0 ? "稼働中の2tコースなし" : "2t車両スペック未登録";
     truckCandidates.forEach((d) => allAssignments.push({
-      deliveryId: d.id, courseId: null, reason: "", unassignedReason: "稼働中の2tコースなし",
+      deliveryId: d.id, courseId: null, reason: "", unassignedReason: reason,
     }));
-    appendLog(log, 3, "2t割り当て", `稼働中の2tコースなしのため ${truckCandidates.length}件すべて未割当`);
+    appendLog(log, 3, "2t割り当て", `${reason}のため ${truckCandidates.length}件すべて未割当`);
   }
 
   // 段階4: 軽割り当て（バッチ分割）
-  if (lightCandidates.length > 0 && lightCourses.length > 0) {
+  if (lightCandidates.length > 0 && lightCourses.length > 0 && lightSpec) {
     const t0 = Date.now();
     let batches = 0;
+    const lightBatchResults: AssignmentResult[] = [];
     for (let i = 0; i < lightCandidates.length; i += BATCH_SIZE) {
       const batch = lightCandidates.slice(i, i + BATCH_SIZE);
       const res = await callAssignBatch({
@@ -278,18 +280,19 @@ export async function autoAssign(
         areaDescription: effectiveDescription,
         clusterMap: lightClusters,
       });
-      allAssignments.push(...res);
+      lightBatchResults.push(...res);
       batches++;
     }
-    const lightResults = allAssignments.slice(allAssignments.length - lightCandidates.length);
-    const assigned = lightResults.filter((r) => r.courseId).length;
-    const unassigned = lightResults.length - assigned;
+    allAssignments.push(...lightBatchResults);
+    const assigned = lightBatchResults.filter((r) => r.courseId).length;
+    const unassigned = lightBatchResults.length - assigned;
     appendLog(log, 4, "軽割り当て", `${assigned}件割当 / ${unassigned}件未割当 (${batches}バッチ, ${((Date.now() - t0) / 1000).toFixed(1)}秒)`);
   } else if (lightCandidates.length > 0) {
+    const reason = lightCourses.length === 0 ? "稼働中の軽コースなし" : "軽車両スペック未登録";
     lightCandidates.forEach((d) => allAssignments.push({
-      deliveryId: d.id, courseId: null, reason: "", unassignedReason: "稼働中の軽コースなし",
+      deliveryId: d.id, courseId: null, reason: "", unassignedReason: reason,
     }));
-    appendLog(log, 4, "軽割り当て", `稼働中の軽コースなしのため ${lightCandidates.length}件すべて未割当`);
+    appendLog(log, 4, "軽割り当て", `${reason}のため ${lightCandidates.length}件すべて未割当`);
   }
 
   // ジオコード失敗を未割当として追加
