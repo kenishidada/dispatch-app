@@ -317,8 +317,8 @@ const lightCandidates = deliveries.filter(d => d.volume < TRUCK_THRESHOLD);
 
 新規ファイル `src/lib/clustering.ts` に DBSCAN 実装。
 
-- `eps = 5km`（環境変数 `NEXT_PUBLIC_DBSCAN_EPS_KM` で上書き可能、デフォルト 5）
-- `minPts = 2`（環境変数 `NEXT_PUBLIC_DBSCAN_MIN_PTS` で上書き可能、デフォルト 2）
+- `eps = 5km`（環境変数 `DBSCAN_EPS_KM` で上書き可能、デフォルト 5）※サーバー専用変数（`NEXT_PUBLIC_` プレフィックスなし）
+- `minPts = 2`（環境変数 `DBSCAN_MIN_PTS` で上書き可能、デフォルト 2）※サーバー専用変数
 - ノイズ点（cluster_id=-1）は単独クラスタとして扱う
 - 結果は `Map<deliveryId, clusterId>` として段階3-4 のプロンプトに渡す
 
@@ -601,8 +601,8 @@ Excel ドロップ
 | キー | 用途 | 設定方法 |
 |---|---|---|
 | `GEMINI_API_KEY` | Gemini API（既存値） | Vercel から手動コピー |
-| `NEXT_PUBLIC_DBSCAN_EPS_KM` | DBSCAN 半径（任意、デフォルト5） | 必要時のみ設定 |
-| `NEXT_PUBLIC_DBSCAN_MIN_PTS` | DBSCAN 最小点数（任意、デフォルト2） | 必要時のみ設定 |
+| `DBSCAN_EPS_KM` | DBSCAN 半径（任意、デフォルト5）※サーバー専用 | 必要時のみ設定 |
+| `DBSCAN_MIN_PTS` | DBSCAN 最小点数（任意、デフォルト2）※サーバー専用 | 必要時のみ設定 |
 | `PORT` | HTTP リスニング | Railway 自動注入、設定不要 |
 
 ### 9.3 ロールバック手順
