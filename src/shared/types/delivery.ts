@@ -27,10 +27,24 @@ export type Delivery = {
   memo: string;
   assignReason: string;
   geocodeStatus: GeoCodeStatus;
+  // Phase 1 transitional: optional so v1 persisted deliveries still type-check.
+  // Phase 4 will make these required. `courseId: string | null` pattern mirrors `driverName`.
   rawAddress?: string;
   slips?: SlipDetail[];
   courseId?: string | null;
   unassignedReason?: string;
+};
+
+export type SlipDetail = {
+  slipNumber: number;
+  shippingNumber: number;
+  packageCount: number;
+  quantity: number;
+  caseCount: number;
+  assortQuantity: number;
+  actualWeight: number;
+  volume: number;
+  factoryName: string;
 };
 
 export type Driver = {
@@ -69,18 +83,6 @@ export type VehicleSpec = {
   maxVolume: number;
   maxWeight: number;
   maxOrders: number;
-};
-
-export type SlipDetail = {
-  slipNumber: number;
-  shippingNumber: number;
-  packageCount: number;
-  quantity: number;
-  caseCount: number;
-  assortQuantity: number;
-  actualWeight: number;
-  volume: number;
-  factoryName: string;
 };
 
 export type AssignmentLogEntry = {
