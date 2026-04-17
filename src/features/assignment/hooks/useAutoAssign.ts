@@ -17,14 +17,14 @@ export function useAutoAssign() {
   const setAssignmentLog = useDeliveryStore((s) => s.setAssignmentLog);
   const setCapacityWarnings = useDeliveryStore((s) => s.setCapacityWarnings);
 
-  const runGeocoding = useCallback(async (items: Delivery[]): Promise<Delivery[]> => {
+  const runGeocoding = useCallback(async (items: Delivery[]): Promise<void> => {
     setProcessing("住所を変換中...");
     try {
       const pendingAddresses = items
         .filter((d) => d.geocodeStatus === "pending" && d.address)
         .map((d) => ({ id: d.id, address: d.address }));
 
-      if (pendingAddresses.length === 0) return items;
+      if (pendingAddresses.length === 0) return;
 
       const res = await fetch("/api/geocode", {
         method: "POST",
@@ -43,13 +43,11 @@ export function useAutoAssign() {
         return { ...d, geocodeStatus: "failed" as const };
       });
       setDeliveries(updated);
-      return updated;
     } catch {
       const failed = items.map((d) =>
         d.geocodeStatus === "pending" ? { ...d, geocodeStatus: "failed" as const } : d
       );
       setDeliveries(failed);
-      return failed;
     } finally {
       clearProcessing();
     }
