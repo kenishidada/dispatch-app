@@ -57,7 +57,12 @@ export function useAutoAssign() {
 
   const runAssign = useCallback(async (): Promise<void> => {
     const state = useDeliveryStore.getState();
-    const { deliveries, courses, activeCourseIds, vehicleSpecs, areaRules, areaImage, areaDescription } = state;
+    const { deliveries, courses, vehicleSpecs, areaRules, areaImage, areaDescription } = state;
+    const validActive = state.activeCourseIds.filter((id) => courses.some((c) => c.id === id));
+    const activeCourseIds = validActive.length > 0 ? validActive : courses.map((c) => c.id);
+    if (validActive.length === 0 && courses.length > 0) {
+      useDeliveryStore.getState().setActiveCourseIds(activeCourseIds);
+    }
     setProcessing("AIで振り分け中...");
     try {
       let prefetchedImageRules: string | null = null;

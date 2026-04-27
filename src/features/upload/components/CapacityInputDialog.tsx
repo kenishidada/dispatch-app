@@ -20,7 +20,10 @@ export function CapacityInputDialog({ onConfirm }: Props) {
     return { totalVolume, totalWeight, truckCount, lightCount, threshold };
   }, [deliveries, vehicleSpecs]);
 
-  const [selected, setSelected] = useState<Set<string>>(new Set(activeCourseIds));
+  const [selected, setSelected] = useState<Set<string>>(() => {
+    const validPrior = activeCourseIds.filter((id) => courses.some((c) => c.id === id));
+    return new Set(validPrior.length > 0 ? validPrior : courses.map((c) => c.id));
+  });
 
   const toggle = (id: string) => {
     const next = new Set(selected);

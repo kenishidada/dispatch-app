@@ -196,6 +196,7 @@ export const useDeliveryStore = create<DeliveryStore>()(
         areaRules: state.areaRules,
         areaImage: state.areaImage,
         areaDescription: state.areaDescription,
+        activeCourseIds: state.activeCourseIds,
       }),
       migrate: migrateStore as (s: unknown, v: number) => DeliveryStore | Promise<DeliveryStore>,
     }

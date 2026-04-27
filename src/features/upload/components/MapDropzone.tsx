@@ -17,7 +17,7 @@ export const MapDropzone = forwardRef<MapDropzoneHandle, Props>(function MapDrop
   const mergeDeliveries = useDeliveryStore((s) => s.mergeDeliveries);
   const isProcessing = useDeliveryStore((s) => s.isProcessing);
   const processingStep = useDeliveryStore((s) => s.processingStep);
-  const { runGeocoding } = useAutoAssign();
+  const { runGeocoding, runAssign } = useAutoAssign();
   const [isDragOver, setIsDragOver] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -43,11 +43,15 @@ export const MapDropzone = forwardRef<MapDropzoneHandle, Props>(function MapDrop
       useDeliveryStore.getState().setUploadedFileName(file.name);
       const allDeliveries = useDeliveryStore.getState().deliveries;
 
-      runGeocoding(allDeliveries).catch(() => {
+      try {
+        await runGeocoding(allDeliveries);
+        await runAssign();
+      } catch (e) {
         useDeliveryStore.getState().clearProcessing();
-      });
+        setError(e instanceof Error ? e.message : "振り分けに失敗しました");
+      }
     },
-    [mergeDeliveries, runGeocoding]
+    [mergeDeliveries, runGeocoding, runAssign]
   );
 
   const handleDrop = useCallback(
