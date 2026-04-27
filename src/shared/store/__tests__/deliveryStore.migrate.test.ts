@@ -19,7 +19,7 @@ describe("migrateStore v1 -> v2", () => {
     expect(courses[1]).toMatchObject({ id: "truck-1", name: "2t-右", vehicleType: "2t", color: "#EA4335" });
   });
 
-  it("preserves areaImage / areaDescription", () => {
+  it("preserves areaImage as areaImages and areaDescription", () => {
     const v1 = {
       drivers: [],
       areaRules: [],
@@ -27,7 +27,8 @@ describe("migrateStore v1 -> v2", () => {
       areaDescription: "横浜は2t",
     };
     const result = migrateStore(v1, 1) as Record<string, unknown>;
-    expect(result.areaImage).toBe("data:image/png;base64,xxx");
+    expect(result.areaImages).toEqual(["data:image/png;base64,xxx"]);
+    expect(result.areaImage).toBeUndefined();
     expect(result.areaDescription).toBe("横浜は2t");
   });
 
@@ -61,8 +62,36 @@ describe("migrateStore v1 -> v2", () => {
     expect(specs).toHaveLength(2);
   });
 
-  it("returns state unchanged when version >= 2", () => {
-    const v2 = { courses: [], vehicleSpecs: [] };
-    expect(migrateStore(v2, 2)).toBe(v2);
+  it("returns state unchanged when version >= 3", () => {
+    const v3 = { courses: [], vehicleSpecs: [], areaImages: [] };
+    expect(migrateStore(v3, 3)).toBe(v3);
+  });
+});
+
+describe("migrateStore v2 -> v3", () => {
+  it("converts single areaImage to areaImages array", () => {
+    const v2 = {
+      courses: [{ id: "light-1", name: "軽1", vehicleType: "light", color: "#000", defaultRegion: "" }],
+      vehicleSpecs: [],
+      areaRules: [],
+      areaImage: "data:image/png;base64,abc",
+      areaDescription: "test",
+    };
+    const result = migrateStore(v2, 2) as Record<string, unknown>;
+    expect(result.areaImages).toEqual(["data:image/png;base64,abc"]);
+    expect(result.areaImage).toBeUndefined();
+    expect(result.areaDescription).toBe("test");
+  });
+
+  it("uses empty array when v2 areaImage is null", () => {
+    const v2 = {
+      courses: [],
+      vehicleSpecs: [],
+      areaRules: [],
+      areaImage: null,
+      areaDescription: "",
+    };
+    const result = migrateStore(v2, 2) as Record<string, unknown>;
+    expect(result.areaImages).toEqual([]);
   });
 });

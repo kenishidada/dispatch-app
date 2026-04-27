@@ -203,7 +203,7 @@ export async function autoAssign(
   activeCourseIds: string[],
   vehicleSpecs: VehicleSpec[],
   areaRules: AreaRule[],
-  areaImage: string | null,
+  areaImages: string[],
   areaDescription: string,
   prefetchedImageRules: string | null = null
 ): Promise<AutoAssignOutput> {
@@ -218,14 +218,19 @@ export async function autoAssign(
       ? `${effectiveDescription}\n\n【画像から読み取ったエリアルール】\n${prefetchedImageRules}`
       : prefetchedImageRules;
     appendLog(log, 0, "画像ルール変換", `キャッシュから ${prefetchedImageRules.length} 文字のルールを使用`);
-  } else if (areaImage) {
-    const imageRules = await extractAreaRulesFromImage(areaImage, courses);
-    if (imageRules) {
-      imageRulesText = imageRules;
+  } else if (areaImages.length > 0) {
+    const t0 = Date.now();
+    const perImage = await Promise.all(areaImages.map((img) => extractAreaRulesFromImage(img, courses)));
+    const merged = perImage
+      .map((text, i) => text ? `[画像${i + 1}]\n${text}` : "")
+      .filter(Boolean)
+      .join("\n\n");
+    if (merged) {
+      imageRulesText = merged;
       effectiveDescription = effectiveDescription
-        ? `${effectiveDescription}\n\n【画像から読み取ったエリアルール】\n${imageRules}`
-        : imageRules;
-      appendLog(log, 0, "画像ルール変換", `画像から ${imageRules.length} 文字のルールを抽出`);
+        ? `${effectiveDescription}\n\n【画像から読み取ったエリアルール】\n${merged}`
+        : merged;
+      appendLog(log, 0, "画像ルール変換", `${areaImages.length}枚の画像から ${merged.length} 文字のルールを抽出 (${((Date.now() - t0) / 1000).toFixed(1)}秒)`);
     }
   }
 

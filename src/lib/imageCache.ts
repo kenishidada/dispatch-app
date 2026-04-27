@@ -7,12 +7,13 @@ async function sha256(s: string): Promise<string> {
 }
 
 export async function getCachedImageRules(
-  areaImage: string,
+  areaImages: string[],
   courses: Array<{ id: string; name: string }>
 ): Promise<{ key: string; cached: string | null }> {
-  const imageHash = await sha256(areaImage);
+  const perImageHashes = await Promise.all(areaImages.map(sha256));
+  const imagesHash = await sha256(perImageHashes.join("|"));
   const coursesHash = await sha256(JSON.stringify(courses.map((c) => `${c.id}:${c.name}`)));
-  const key = `area-rules-${imageHash}-${coursesHash}`;
+  const key = `area-rules-${imagesHash}-${coursesHash}`;
   const cached = typeof localStorage !== "undefined" ? localStorage.getItem(key) : null;
   return { key, cached };
 }

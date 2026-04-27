@@ -57,7 +57,7 @@ export function useAutoAssign() {
 
   const runAssign = useCallback(async (): Promise<void> => {
     const state = useDeliveryStore.getState();
-    const { deliveries, courses, vehicleSpecs, areaRules, areaImage, areaDescription } = state;
+    const { deliveries, courses, vehicleSpecs, areaRules, areaImages, areaDescription } = state;
     const validActive = state.activeCourseIds.filter((id) => courses.some((c) => c.id === id));
     const activeCourseIds = validActive.length > 0 ? validActive : courses.map((c) => c.id);
     if (validActive.length === 0 && courses.length > 0) {
@@ -66,14 +66,14 @@ export function useAutoAssign() {
     setProcessing("AIで振り分け中...");
     try {
       let prefetchedImageRules: string | null = null;
-      let imageToSend = areaImage;
+      let imagesToSend = areaImages;
       let cacheKey: string | null = null;
-      if (areaImage) {
-        const { key, cached } = await getCachedImageRules(areaImage, courses);
+      if (areaImages.length > 0) {
+        const { key, cached } = await getCachedImageRules(areaImages, courses);
         cacheKey = key;
         if (cached) {
           prefetchedImageRules = cached;
-          imageToSend = null;
+          imagesToSend = [];
         }
       }
       const res = await fetch("/api/assign", {
@@ -81,7 +81,7 @@ export function useAutoAssign() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           deliveries, courses, activeCourseIds, vehicleSpecs, areaRules,
-          areaImage: imageToSend, areaDescription, prefetchedImageRules,
+          areaImages: imagesToSend, areaDescription, prefetchedImageRules,
         }),
       });
       if (!res.ok) throw new Error(`API error ${res.status}`);

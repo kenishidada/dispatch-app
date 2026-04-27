@@ -5,14 +5,14 @@ import { Delivery, Course, AreaRule, VehicleSpec } from "@/shared/types/delivery
 export async function POST(request: NextRequest) {
   const body = await request.json();
   const {
-    deliveries, courses, activeCourseIds, vehicleSpecs, areaRules, areaImage, areaDescription, prefetchedImageRules,
+    deliveries, courses, activeCourseIds, vehicleSpecs, areaRules, areaImages, areaDescription, prefetchedImageRules,
   } = body as {
     deliveries: Delivery[];
     courses: Course[];
     activeCourseIds: string[];
     vehicleSpecs: VehicleSpec[];
     areaRules: AreaRule[];
-    areaImage: string | null;
+    areaImages: string[];
     areaDescription: string;
     prefetchedImageRules: string | null;
   };
@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
 
   const output = await autoAssign(
     deliveries, courses, activeCourseIds, vehicleSpecs,
-    areaRules || [], areaImage || null, areaDescription || "", prefetchedImageRules || null
+    areaRules || [], areaImages || [], areaDescription || "", prefetchedImageRules || null
   );
   console.log("[assign] active courses:", activeCourseIds);
   console.log("[assign] assigned:", output.assignments.filter((a) => a.courseId).length, "/", output.assignments.length);

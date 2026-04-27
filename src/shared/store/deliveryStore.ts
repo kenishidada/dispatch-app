@@ -8,42 +8,55 @@ import {
 
 export function migrateStore(persistedState: unknown, version: number): unknown {
   if (!persistedState || typeof persistedState !== "object") return persistedState;
-  if (version >= 2) return persistedState;
-  const s = persistedState as Record<string, unknown>;
-  const oldDrivers =
-    (s.drivers as Array<{ name: string; color: string; vehicleType: "light" | "2t" }> | undefined) ?? [];
-  let lightIdx = 0;
-  let truckIdx = 0;
-  const courses: Course[] = oldDrivers.length > 0
-    ? oldDrivers.map((d) => {
-        const isTruck = d.vehicleType === "2t";
-        const idx = isTruck ? ++truckIdx : ++lightIdx;
-        return {
-          id: `${isTruck ? "truck" : "light"}-${idx}`,
-          name: d.name,
-          vehicleType: d.vehicleType,
-          color: d.color,
-          defaultRegion: "",
-        };
-      })
-    : DEFAULT_COURSES;
-  const oldRules =
-    (s.areaRules as Array<{ id: string; region: string; driverName?: string; courseId?: string }> | undefined) ?? [];
-  const areaRules: AreaRule[] = oldRules.map((r) => {
-    const matched = r.driverName ? courses.find((c) => c.name === r.driverName) : null;
-    return {
-      id: r.id,
-      region: r.region,
-      courseId: r.courseId ?? matched?.id ?? courses[0]?.id ?? "",
+  let state: Record<string, unknown> = persistedState as Record<string, unknown>;
+
+  if (version < 2) {
+    const oldDrivers =
+      (state.drivers as Array<{ name: string; color: string; vehicleType: "light" | "2t" }> | undefined) ?? [];
+    let lightIdx = 0;
+    let truckIdx = 0;
+    const courses: Course[] = oldDrivers.length > 0
+      ? oldDrivers.map((d) => {
+          const isTruck = d.vehicleType === "2t";
+          const idx = isTruck ? ++truckIdx : ++lightIdx;
+          return {
+            id: `${isTruck ? "truck" : "light"}-${idx}`,
+            name: d.name,
+            vehicleType: d.vehicleType,
+            color: d.color,
+            defaultRegion: "",
+          };
+        })
+      : DEFAULT_COURSES;
+    const oldRules =
+      (state.areaRules as Array<{ id: string; region: string; driverName?: string; courseId?: string }> | undefined) ?? [];
+    const areaRules: AreaRule[] = oldRules.map((r) => {
+      const matched = r.driverName ? courses.find((c) => c.name === r.driverName) : null;
+      return {
+        id: r.id,
+        region: r.region,
+        courseId: r.courseId ?? matched?.id ?? courses[0]?.id ?? "",
+      };
+    });
+    state = {
+      courses,
+      vehicleSpecs: DEFAULT_VEHICLE_SPECS,
+      areaRules,
+      areaImage: state.areaImage ?? null,
+      areaDescription: state.areaDescription ?? "",
     };
-  });
-  return {
-    courses,
-    vehicleSpecs: DEFAULT_VEHICLE_SPECS,
-    areaRules,
-    areaImage: s.areaImage ?? null,
-    areaDescription: s.areaDescription ?? "",
-  };
+  }
+
+  if (version < 3) {
+    const legacyImage = state.areaImage as string | null | undefined;
+    state = {
+      ...state,
+      areaImages: legacyImage ? [legacyImage] : ((state.areaImages as string[] | undefined) ?? []),
+    };
+    delete state.areaImage;
+  }
+
+  return state;
 }
 
 type DeliveryStore = {
@@ -51,7 +64,7 @@ type DeliveryStore = {
   courses: Course[];
   vehicleSpecs: VehicleSpec[];
   areaRules: AreaRule[];
-  areaImage: string | null;
+  areaImages: string[];
   areaDescription: string;
   selectedDeliveryId: string | null;
   selectedDeliveryIds: Set<string>;
@@ -69,7 +82,9 @@ type DeliveryStore = {
   toggleUndelivered: (id: string) => void;
   setMemo: (id: string, memo: string) => void;
   setAreaRules: (rules: AreaRule[]) => void;
-  setAreaImage: (image: string | null) => void;
+  setAreaImages: (images: string[]) => void;
+  addAreaImage: (image: string) => void;
+  removeAreaImage: (index: number) => void;
   setAreaDescription: (desc: string) => void;
   selectDelivery: (id: string | null) => void;
   setUploadedFileName: (name: string) => void;
@@ -97,7 +112,7 @@ export const useDeliveryStore = create<DeliveryStore>()(
       courses: DEFAULT_COURSES,
       vehicleSpecs: DEFAULT_VEHICLE_SPECS,
       areaRules: [],
-      areaImage: null,
+      areaImages: [],
       areaDescription: "",
       selectedDeliveryId: null,
       selectedDeliveryIds: new Set<string>(),
@@ -125,7 +140,9 @@ export const useDeliveryStore = create<DeliveryStore>()(
       setMemo: (id, memo) =>
         set({ deliveries: get().deliveries.map((d) => (d.id === id ? { ...d, memo } : d)) }),
       setAreaRules: (rules) => set({ areaRules: rules }),
-      setAreaImage: (image) => set({ areaImage: image }),
+      setAreaImages: (images) => set({ areaImages: images }),
+      addAreaImage: (image) => set({ areaImages: [...get().areaImages, image] }),
+      removeAreaImage: (index) => set({ areaImages: get().areaImages.filter((_, i) => i !== index) }),
       setAreaDescription: (desc) => set({ areaDescription: desc }),
       selectDelivery: (id) => set({ selectedDeliveryId: id }),
       setUploadedFileName: (name) => set({ uploadedFileName: name }),
@@ -189,12 +206,12 @@ export const useDeliveryStore = create<DeliveryStore>()(
     }),
     {
       name: "delivery-store",
-      version: 2,
+      version: 3,
       partialize: (state) => ({
         courses: state.courses,
         vehicleSpecs: state.vehicleSpecs,
         areaRules: state.areaRules,
-        areaImage: state.areaImage,
+        areaImages: state.areaImages,
         areaDescription: state.areaDescription,
         activeCourseIds: state.activeCourseIds,
       }),

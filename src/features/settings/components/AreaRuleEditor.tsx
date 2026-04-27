@@ -12,21 +12,22 @@ import { Card } from "@/components/ui/card";
 import { AreaRule } from "@/shared/types/delivery";
 
 export function AreaRuleEditor() {
-  const { courses, areaRules, setAreaRules, areaImage, setAreaImage, areaDescription, setAreaDescription } = useDeliveryStore();
+  const { courses, areaRules, setAreaRules, areaImages, addAreaImage, removeAreaImage, areaDescription, setAreaDescription } = useDeliveryStore();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [isDragOver, setIsDragOver] = useState(false);
 
-  const loadImageFile = useCallback((file: File) => {
-    if (!file.type.startsWith("image/")) return;
-    const reader = new FileReader();
-    reader.onload = () => setAreaImage(reader.result as string);
-    reader.readAsDataURL(file);
-  }, [setAreaImage]);
+  const loadImageFiles = useCallback((files: FileList | File[]) => {
+    Array.from(files).forEach((file) => {
+      if (!file.type.startsWith("image/")) return;
+      const reader = new FileReader();
+      reader.onload = () => addAreaImage(reader.result as string);
+      reader.readAsDataURL(file);
+    });
+  }, [addAreaImage]);
 
   const handleImageUpload = (e: ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) loadImageFile(file);
+    if (e.target.files && e.target.files.length > 0) loadImageFiles(e.target.files);
     e.target.value = "";
   };
 
@@ -59,45 +60,57 @@ export function AreaRuleEditor() {
         <h2 className="text-lg font-bold mb-4">エリア設定</h2>
         <div className="space-y-6">
           <div>
-            <label className="block text-sm font-medium mb-1">区割り図をアップロード（任意）</label>
-            <p className="text-xs text-muted-foreground mb-2">アップロードした画像をAIが読み取り、エリアに基づいて配送先を振り分けます</p>
+            <label className="block text-sm font-medium mb-1">区割り図をアップロード（複数可・任意）</label>
+            <p className="text-xs text-muted-foreground mb-2">アップロードした画像をAIが読み取り、エリアに基づいて配送先を振り分けます。エリアが複数県にまたがる場合は分けて登録できます</p>
             <input
               ref={fileInputRef}
               type="file"
               accept="image/jpeg,image/png"
+              multiple
               className="hidden"
               onChange={handleImageUpload}
             />
-            {areaImage ? (
-              <div className="space-y-2">
-                <img src={areaImage} alt="区割り図" className="max-h-64 rounded border" />
-                <div className="flex gap-2">
-                  <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()}>変更</Button>
-                  <Button variant="outline" size="sm" className="text-red-500" onClick={() => setAreaImage(null)}>削除</Button>
-                </div>
-              </div>
-            ) : (
-              <div
-                onDrop={(e) => {
-                  e.preventDefault();
-                  setIsDragOver(false);
-                  const file = e.dataTransfer.files[0];
-                  if (file) loadImageFile(file);
-                }}
-                onDragOver={(e) => {
-                  e.preventDefault();
-                  setIsDragOver(true);
-                }}
-                onDragLeave={() => setIsDragOver(false)}
-                onClick={() => fileInputRef.current?.click()}
-                className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors ${
-                  isDragOver ? "border-blue-500 bg-blue-50" : "border-gray-300 hover:border-gray-400"
-                }`}
-              >
-                <p className="text-sm font-medium text-gray-600">区割り図をドラッグ&ドロップ</p>
-                <p className="text-xs text-gray-400 mt-1">またはクリックして選択（JPG / PNG）</p>
+            {areaImages.length > 0 && (
+              <div className="grid grid-cols-2 gap-3 mb-3">
+                {areaImages.map((img, i) => (
+                  <div key={i} className="relative group">
+                    <img src={img} alt={`区割り図 ${i + 1}`} className="w-full max-h-48 object-contain rounded border" />
+                    <div className="absolute top-1 right-1 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="bg-white text-red-500 h-6 px-2 text-xs"
+                        onClick={() => removeAreaImage(i)}
+                      >
+                        削除
+                      </Button>
+                    </div>
+                    <span className="absolute bottom-1 left-1 bg-black/60 text-white text-xs px-1.5 py-0.5 rounded">画像{i + 1}</span>
+                  </div>
+                ))}
               </div>
             )}
+            <div
+              onDrop={(e) => {
+                e.preventDefault();
+                setIsDragOver(false);
+                if (e.dataTransfer.files.length > 0) loadImageFiles(e.dataTransfer.files);
+              }}
+              onDragOver={(e) => {
+                e.preventDefault();
+                setIsDragOver(true);
+              }}
+              onDragLeave={() => setIsDragOver(false)}
+              onClick={() => fileInputRef.current?.click()}
+              className={`border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors ${
+                isDragOver ? "border-blue-500 bg-blue-50" : "border-gray-300 hover:border-gray-400"
+              }`}
+            >
+              <p className="text-sm font-medium text-gray-600">
+                {areaImages.length > 0 ? "画像を追加（ドラッグ or クリック）" : "区割り図をドラッグ&ドロップ"}
+              </p>
+              <p className="text-xs text-gray-400 mt-1">複数選択可（JPG / PNG）</p>
+            </div>
           </div>
           <div>
             <label className="block text-sm font-medium mb-1">エリアルールの説明（任意）</label>

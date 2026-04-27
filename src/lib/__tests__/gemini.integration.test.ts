@@ -66,7 +66,7 @@ describe("autoAssign integration", () => {
       makeD("b", 2000, 200, 35.4001, 139.5001),
     ];
     const rules: AreaRule[] = [];
-    const result = await autoAssign(deliveries, courses, ["light-1", "truck-1"], specs, rules, null, "");
+    const result = await autoAssign(deliveries, courses, ["light-1", "truck-1"], specs, rules, [], "");
     expect(result.assignmentLog.length).toBeGreaterThanOrEqual(5);
     expect(result.assignmentLog.some((e) => e.title === "大口抽出")).toBe(true);
     expect(result.assignmentLog.some((e) => e.title === "クラスタリング")).toBe(true);
