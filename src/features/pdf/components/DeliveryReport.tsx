@@ -13,11 +13,23 @@ Font.register({
   src: "https://fonts.gstatic.com/s/notosansjp/v56/-F6jfjtqLzI2JPCgQBnw7HFyzSD-AsregP8VFBEj75s.ttf",
 });
 
+const LARGE_STORE_NAMES = ["島忠", "DCM", "ホームズ", "ケーヨー", "コーナン", "カインズ", "ビバホーム", "ジョイフル本田"];
+
+function getRowBg(d: Delivery, allItems: Delivery[]): string | undefined {
+  if (d.isUndelivered) return "#dcfce7";
+  if (LARGE_STORE_NAMES.some((name) => d.destinationName.includes(name))) return "#dbeafe";
+  if (allItems.filter((x) => x.address === d.address).length > 1) return "#fef9c3";
+  return undefined;
+}
+
 const styles = StyleSheet.create({
   page: { padding: 24, fontFamily: "NotoSansJP", fontSize: 8, color: "#000" },
   header: { marginBottom: 6 },
   headerTitle: { fontSize: 11, fontWeight: "bold" },
   headerMeta: { fontSize: 8, color: "#333", marginTop: 2 },
+  legend: { flexDirection: "row", gap: 12, marginTop: 2, marginBottom: 4 },
+  legendItem: { flexDirection: "row", alignItems: "center", gap: 3, fontSize: 7 },
+  legendBox: { width: 10, height: 8 },
   headerRow: {
     flexDirection: "row",
     borderBottom: "1px solid #333",
@@ -82,6 +94,20 @@ export function DeliveryReport({ deliveries, courses, date }: Props) {
                 {date}　{items.length}件　重量合計 {totalWeight}kg　容積合計 {totalVolume}L
                 {course ? `　車両 ${course.vehicleType === "2t" ? "2tトラック" : "軽自動車"}` : ""}
               </Text>
+              <View style={styles.legend}>
+                <View style={styles.legendItem}>
+                  <View style={{ ...styles.legendBox, backgroundColor: "#fef9c3" }} />
+                  <Text>同一住所</Text>
+                </View>
+                <View style={styles.legendItem}>
+                  <View style={{ ...styles.legendBox, backgroundColor: "#dbeafe" }} />
+                  <Text>大型店</Text>
+                </View>
+                <View style={styles.legendItem}>
+                  <View style={{ ...styles.legendBox, backgroundColor: "#dcfce7" }} />
+                  <Text>前日分</Text>
+                </View>
+              </View>
             </View>
 
             <View style={styles.headerRow}>
@@ -100,8 +126,9 @@ export function DeliveryReport({ deliveries, courses, date }: Props) {
 
             {items.map((d) => {
               const dCourse = courses.find((c) => c.id === d.courseId);
+              const bg = getRowBg(d, deliveries);
               return (
-                <View key={d.id} style={styles.row}>
+                <View key={d.id} style={bg ? { ...styles.row, backgroundColor: bg } : styles.row}>
                   <Text style={styles.c_name}>{d.destinationName}</Text>
                   <Text style={styles.c_pkg}>{d.packageCount}</Text>
                   <Text style={styles.c_weight}>{d.actualWeight}</Text>
