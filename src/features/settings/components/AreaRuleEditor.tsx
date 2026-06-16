@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useCallback, ChangeEvent } from "react";
+import { useState, useRef, useCallback, useEffect, type ChangeEvent } from "react";
 import { v4 as uuidv4 } from "uuid";
 import { useDeliveryStore } from "@/shared/store/deliveryStore";
 import { Button } from "@/components/ui/button";
@@ -11,23 +11,57 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Card } from "@/components/ui/card";
 import { AreaRule } from "@/shared/types/delivery";
 
+type StoredImage = { id: string; url: string | null; sortOrder: number };
+
 export function AreaRuleEditor() {
-  const { courses, areaRules, setAreaRules, areaImages, addAreaImage, removeAreaImage, areaDescription, setAreaDescription } = useDeliveryStore();
+  const { courses, areaRules, setAreaRules, areaDescription, setAreaDescription } = useDeliveryStore();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [isDragOver, setIsDragOver] = useState(false);
+  const [images, setImages] = useState<StoredImage[]>([]);
+  const [uploading, setUploading] = useState(false);
+  const [savingRules, setSavingRules] = useState(false);
+  const [loaded, setLoaded] = useState(false);
 
-  const loadImageFiles = useCallback((files: FileList | File[]) => {
-    Array.from(files).forEach((file) => {
-      if (!file.type.startsWith("image/")) return;
-      const reader = new FileReader();
-      reader.onload = () => addAreaImage(reader.result as string);
-      reader.readAsDataURL(file);
+  useEffect(() => {
+    Promise.all([
+      fetch("/api/settings/area-rules").then((r) => r.json()),
+      fetch("/api/settings/area-images").then((r) => r.json()),
+    ])
+      .then(([rules, imgs]) => {
+        if (Array.isArray(rules) && rules.length > 0) setAreaRules(rules);
+        if (Array.isArray(imgs)) setImages(imgs);
+        setLoaded(true);
+      })
+      .catch(() => setLoaded(true));
+  }, [setAreaRules]);
+
+  const uploadFiles = useCallback(async (files: FileList | File[]) => {
+    setUploading(true);
+    for (const file of Array.from(files)) {
+      if (!file.type.startsWith("image/")) continue;
+      const formData = new FormData();
+      formData.append("file", file);
+      const res = await fetch("/api/settings/area-images", { method: "POST", body: formData });
+      if (res.ok) {
+        const img: StoredImage = await res.json();
+        setImages((prev) => [...prev, img]);
+      }
+    }
+    setUploading(false);
+  }, []);
+
+  const deleteImage = useCallback(async (id: string) => {
+    await fetch("/api/settings/area-images", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id }),
     });
-  }, [addAreaImage]);
+    setImages((prev) => prev.filter((img) => img.id !== id));
+  }, []);
 
   const handleImageUpload = (e: ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files.length > 0) loadImageFiles(e.target.files);
+    if (e.target.files && e.target.files.length > 0) uploadFiles(e.target.files);
     e.target.value = "";
   };
 
@@ -40,11 +74,7 @@ export function AreaRuleEditor() {
 
   const addAreaRule = () => {
     if (!newRegion.trim() || !newRuleCourse) return;
-    const rule: AreaRule = {
-      id: uuidv4(),
-      region: newRegion.trim(),
-      courseId: newRuleCourse,
-    };
+    const rule: AreaRule = { id: uuidv4(), region: newRegion.trim(), courseId: newRuleCourse };
     setAreaRules([...areaRules, rule]);
     setNewRegion("");
     setNewRuleCourse("");
@@ -53,6 +83,18 @@ export function AreaRuleEditor() {
   const removeAreaRule = (id: string) => {
     setAreaRules(areaRules.filter((r) => r.id !== id));
   };
+
+  const saveRules = async () => {
+    setSavingRules(true);
+    await fetch("/api/settings/area-rules", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(areaRules),
+    });
+    setSavingRules(false);
+  };
+
+  if (!loaded) return <div className="p-6">読み込み中...</div>;
 
   return (
     <div className="space-y-8">
@@ -70,17 +112,21 @@ export function AreaRuleEditor() {
               className="hidden"
               onChange={handleImageUpload}
             />
-            {areaImages.length > 0 && (
+            {images.length > 0 && (
               <div className="grid grid-cols-2 gap-3 mb-3">
-                {areaImages.map((img, i) => (
-                  <div key={i} className="relative group">
-                    <img src={img} alt={`区割り図 ${i + 1}`} className="w-full max-h-48 object-contain rounded border" />
+                {images.map((img, i) => (
+                  <div key={img.id} className="relative group">
+                    {img.url ? (
+                      <img src={img.url} alt={`区割り図 ${i + 1}`} className="w-full max-h-48 object-contain rounded border" />
+                    ) : (
+                      <div className="w-full h-32 bg-gray-100 rounded border flex items-center justify-center text-sm text-gray-400">読み込み不可</div>
+                    )}
                     <div className="absolute top-1 right-1 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                       <Button
                         variant="outline"
                         size="sm"
                         className="bg-white text-red-500 h-6 px-2 text-xs"
-                        onClick={() => removeAreaImage(i)}
+                        onClick={() => deleteImage(img.id)}
                       >
                         削除
                       </Button>
@@ -94,12 +140,9 @@ export function AreaRuleEditor() {
               onDrop={(e) => {
                 e.preventDefault();
                 setIsDragOver(false);
-                if (e.dataTransfer.files.length > 0) loadImageFiles(e.dataTransfer.files);
+                if (e.dataTransfer.files.length > 0) uploadFiles(e.dataTransfer.files);
               }}
-              onDragOver={(e) => {
-                e.preventDefault();
-                setIsDragOver(true);
-              }}
+              onDragOver={(e) => { e.preventDefault(); setIsDragOver(true); }}
               onDragLeave={() => setIsDragOver(false)}
               onClick={() => fileInputRef.current?.click()}
               className={`border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors ${
@@ -107,7 +150,7 @@ export function AreaRuleEditor() {
               }`}
             >
               <p className="text-sm font-medium text-gray-600">
-                {areaImages.length > 0 ? "画像を追加（ドラッグ or クリック）" : "区割り図をドラッグ&ドロップ"}
+                {uploading ? "アップロード中..." : images.length > 0 ? "画像を追加（ドラッグ or クリック）" : "区割り図をドラッグ&ドロップ"}
               </p>
               <p className="text-xs text-gray-400 mt-1">複数選択可（JPG / PNG）</p>
             </div>
@@ -179,6 +222,15 @@ export function AreaRuleEditor() {
             </SelectContent>
           </Select>
           <Button onClick={addAreaRule}>追加</Button>
+        </div>
+        <div className="mt-4">
+          <button
+            className="bg-blue-600 text-white rounded px-4 py-2 text-sm disabled:opacity-50"
+            onClick={saveRules}
+            disabled={savingRules}
+          >
+            {savingRules ? "保存中..." : "ルールを保存"}
+          </button>
         </div>
       </Card>
     </div>

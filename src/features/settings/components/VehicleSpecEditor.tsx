@@ -1,16 +1,41 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { useDeliveryStore } from "@/shared/store/deliveryStore";
 import type { VehicleSpec } from "@/shared/types/delivery";
 
 export function VehicleSpecEditor() {
   const { vehicleSpecs, setVehicleSpecs } = useDeliveryStore();
+  const [saving, setSaving] = useState(false);
+  const [loaded, setLoaded] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/settings/vehicle-specs")
+      .then((r) => r.json())
+      .then((data: VehicleSpec[]) => {
+        if (data.length > 0) setVehicleSpecs(data);
+        setLoaded(true);
+      })
+      .catch(() => setLoaded(true));
+  }, [setVehicleSpecs]);
 
   const update = (vehicleType: "light" | "2t", field: keyof VehicleSpec, value: number) => {
     setVehicleSpecs(
       vehicleSpecs.map((s) => (s.vehicleType === vehicleType ? { ...s, [field]: value } : s))
     );
   };
+
+  const save = async () => {
+    setSaving(true);
+    await fetch("/api/settings/vehicle-specs", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(vehicleSpecs),
+    });
+    setSaving(false);
+  };
+
+  if (!loaded) return <section className="rounded-lg border p-4">読み込み中...</section>;
 
   return (
     <section className="rounded-lg border p-4 space-y-4">
@@ -48,6 +73,13 @@ export function VehicleSpecEditor() {
           </label>
         </div>
       ))}
+      <button
+        className="bg-blue-600 text-white rounded px-4 py-2 text-sm disabled:opacity-50"
+        onClick={save}
+        disabled={saving}
+      >
+        {saving ? "保存中..." : "保存"}
+      </button>
     </section>
   );
 }

@@ -3,7 +3,6 @@
 import { useCallback } from "react";
 import { useDeliveryStore } from "@/shared/store/deliveryStore";
 import type { AssignmentLogEntry, CapacityWarning, Delivery } from "@/shared/types/delivery";
-import { getCachedImageRules, setCachedImageRules } from "@/lib/imageCache";
 
 type ApiResponse = {
   assignments: { deliveryId: string; courseId: string | null; reason: string; unassignedReason: string }[];
@@ -57,7 +56,7 @@ export function useAutoAssign() {
 
   const runAssign = useCallback(async (): Promise<void> => {
     const state = useDeliveryStore.getState();
-    const { deliveries, courses, vehicleSpecs, areaRules, areaImages, areaDescription } = state;
+    const { deliveries, courses, vehicleSpecs, areaRules, areaDescription } = state;
     const validActive = state.activeCourseIds.filter((id) => courses.some((c) => c.id === id));
     const activeCourseIds = validActive.length > 0 ? validActive : courses.map((c) => c.id);
     if (validActive.length === 0 && courses.length > 0) {
@@ -65,30 +64,16 @@ export function useAutoAssign() {
     }
     setProcessing("AIで振り分け中...");
     try {
-      let prefetchedImageRules: string | null = null;
-      let imagesToSend = areaImages;
-      let cacheKey: string | null = null;
-      if (areaImages.length > 0) {
-        const { key, cached } = await getCachedImageRules(areaImages, courses);
-        cacheKey = key;
-        if (cached) {
-          prefetchedImageRules = cached;
-          imagesToSend = [];
-        }
-      }
       const res = await fetch("/api/assign", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           deliveries, courses, activeCourseIds, vehicleSpecs, areaRules,
-          areaImages: imagesToSend, areaDescription, prefetchedImageRules,
+          areaDescription, prefetchedImageRules: null,
         }),
       });
       if (!res.ok) throw new Error(`API error ${res.status}`);
       const data = (await res.json()) as ApiResponse;
-      if (cacheKey && !prefetchedImageRules && data.imageRulesText) {
-        setCachedImageRules(cacheKey, data.imageRulesText);
-      }
       const courseMap = new Map(courses.map((c) => [c.id, c]));
       const assignMap = new Map(data.assignments.map((a) => [a.deliveryId, a]));
       const updated = deliveries.map((d) => {

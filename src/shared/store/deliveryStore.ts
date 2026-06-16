@@ -209,9 +209,6 @@ export const useDeliveryStore = create<DeliveryStore>()(
       version: 3,
       partialize: (state) => ({
         courses: state.courses,
-        vehicleSpecs: state.vehicleSpecs,
-        areaRules: state.areaRules,
-        areaImages: state.areaImages,
         areaDescription: state.areaDescription,
         activeCourseIds: state.activeCourseIds,
       }),
