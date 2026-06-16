@@ -6,7 +6,7 @@ import {
   StyleSheet,
   Font,
 } from "@react-pdf/renderer";
-import { Delivery, Course, CapacityWarning } from "@/shared/types/delivery";
+import { Delivery, Course } from "@/shared/types/delivery";
 
 Font.register({
   family: "NotoSansJP",
@@ -14,52 +14,38 @@ Font.register({
 });
 
 const styles = StyleSheet.create({
-  page: { padding: 30, fontFamily: "NotoSansJP", fontSize: 9 },
-  header: { marginBottom: 15 },
-  title: { fontSize: 16, fontWeight: "bold", marginBottom: 4 },
-  subtitle: { fontSize: 10, color: "#666" },
-  warningBox: {
-    backgroundColor: "#fef3c7",
-    border: "1px solid #f59e0b",
-    padding: 8,
-    marginBottom: 12,
-  },
-  warningTitle: { fontSize: 11, fontWeight: "bold", color: "#92400e", marginBottom: 4 },
-  warningItem: { fontSize: 9, color: "#92400e", marginBottom: 2 },
-  table: { width: "100%", marginTop: 10 },
-  tableHeader: {
+  page: { padding: 24, fontFamily: "NotoSansJP", fontSize: 8, color: "#000" },
+  header: { marginBottom: 6 },
+  headerTitle: { fontSize: 11, fontWeight: "bold" },
+  headerMeta: { fontSize: 8, color: "#333", marginTop: 2 },
+  headerRow: {
     flexDirection: "row",
-    backgroundColor: "#f3f4f6",
-    borderBottom: "1px solid #d1d5db",
-    padding: 4,
+    borderBottom: "1px solid #333",
+    paddingTop: 3,
+    paddingBottom: 3,
     fontWeight: "bold",
   },
-  tableRow: {
-    flexDirection: "row",
-    borderBottom: "1px solid #e5e7eb",
-    padding: 4,
-  },
-  col1: { width: "14%" },
-  col2: { width: "5%" },
-  col3: { width: "6%" },
-  col4: { width: "5%" },
-  col5: { width: "20%" },
-  col6: { width: "6%" },
-  col7: { width: "9%" },
-  col8: { width: "9%" },
-  col9: { width: "10%" },
-  col10: { width: "4%" },
-  col11: { width: "12%" },
+  row: { flexDirection: "row", paddingTop: 2.5, paddingBottom: 2.5 },
+  c_name: { width: "14%", paddingRight: 3 },
+  c_pkg: { width: "5%", paddingRight: 3, textAlign: "right" },
+  c_weight: { width: "7%", paddingRight: 3, textAlign: "right" },
+  c_volume: { width: "6%", paddingRight: 3, textAlign: "right" },
+  c_address: { width: "22%", paddingRight: 3 },
+  c_date: { width: "8%", paddingRight: 3 },
+  c_slip: { width: "9%", paddingRight: 3 },
+  c_ship: { width: "9%", paddingRight: 3 },
+  c_course: { width: "8%", paddingRight: 3 },
+  c_undelivered: { width: "4%", textAlign: "center" },
+  c_memo: { width: "8%" },
 });
 
 type Props = {
   deliveries: Delivery[];
   courses: Course[];
   date: string;
-  capacityWarnings?: CapacityWarning[];
 };
 
-export function DeliveryReport({ deliveries, courses, date, capacityWarnings }: Props) {
+export function DeliveryReport({ deliveries, courses, date }: Props) {
   const grouped = new Map<string, Delivery[]>();
   for (const d of deliveries) {
     const key = d.courseId ?? "__unassigned__";
@@ -67,69 +53,69 @@ export function DeliveryReport({ deliveries, courses, date, capacityWarnings }: 
     grouped.get(key)!.push(d);
   }
 
-  const entries = Array.from(grouped.entries());
-  const hasWarnings = capacityWarnings && capacityWarnings.length > 0;
+  // 表示順: 軽（名前昇順）→ 2t（名前昇順）→ 未割当を最後
+  const rank = (id: string) => {
+    if (id === "__unassigned__") return { group: 2, name: "" };
+    const c = courses.find((x) => x.id === id);
+    return { group: c?.vehicleType === "2t" ? 1 : 0, name: c?.name ?? id };
+  };
+  const entries = Array.from(grouped.entries()).sort(([a], [b]) => {
+    const ra = rank(a);
+    const rb = rank(b);
+    if (ra.group !== rb.group) return ra.group - rb.group;
+    return ra.name.localeCompare(rb.name, "ja");
+  });
 
   return (
     <Document>
-      {entries.map(([courseId, items], pageIdx) => {
+      {entries.map(([courseId, items]) => {
         const course = courses.find((c) => c.id === courseId);
         const displayName = course?.name ?? "未割当";
         const totalWeight = items.reduce((s, d) => s + d.actualWeight, 0);
         const totalVolume = items.reduce((s, d) => s + d.volume, 0);
-        const isFirstPage = pageIdx === 0;
 
         return (
           <Page key={courseId} size="A4" orientation="landscape" style={styles.page}>
-            {isFirstPage && hasWarnings && (
-              <View style={styles.warningBox}>
-                <Text style={styles.warningTitle}>⚠ 上限超過コースあり ({capacityWarnings!.length}件)</Text>
-                {capacityWarnings!.map((w, i) => (
-                  <Text key={i} style={styles.warningItem}>・{w.message}</Text>
-                ))}
-              </View>
-            )}
             <View style={styles.header}>
-              <Text style={styles.title}>{displayName}</Text>
-              <Text style={styles.subtitle}>
-                {date} | {items.length}件 | 重量合計: {totalWeight}kg | 容積合計: {totalVolume}L
-                {course ? ` | 車両: ${course.vehicleType === "2t" ? "2tトラック" : "軽自動車"}` : ""}
+              <Text style={styles.headerTitle}>{displayName}</Text>
+              <Text style={styles.headerMeta}>
+                {date}　{items.length}件　重量合計 {totalWeight}kg　容積合計 {totalVolume}L
+                {course ? `　車両 ${course.vehicleType === "2t" ? "2tトラック" : "軽自動車"}` : ""}
               </Text>
             </View>
 
-            <View style={styles.table}>
-              <View style={styles.tableHeader}>
-                <Text style={styles.col1}>届先名</Text>
-                <Text style={styles.col2}>個口数</Text>
-                <Text style={styles.col3}>実重量</Text>
-                <Text style={styles.col4}>容積</Text>
-                <Text style={styles.col5}>届先住所</Text>
-                <Text style={styles.col6}>納品日</Text>
-                <Text style={styles.col7}>伝票番号</Text>
-                <Text style={styles.col8}>出荷番号</Text>
-                <Text style={styles.col9}>担当コース</Text>
-                <Text style={styles.col10}>未配</Text>
-                <Text style={styles.col11}>メモ</Text>
-              </View>
-              {items.map((d) => {
-                const dCourse = courses.find((c) => c.id === d.courseId);
-                return (
-                  <View key={d.id} style={styles.tableRow}>
-                    <Text style={styles.col1}>{d.destinationName}</Text>
-                    <Text style={styles.col2}>{d.packageCount}</Text>
-                    <Text style={styles.col3}>{d.actualWeight}kg</Text>
-                    <Text style={styles.col4}>{d.volume}L</Text>
-                    <Text style={styles.col5}>{d.address}</Text>
-                    <Text style={styles.col6}>{d.deliveryDate}</Text>
-                    <Text style={styles.col7}>{d.slipNumber}</Text>
-                    <Text style={styles.col8}>{d.shippingNumber}</Text>
-                    <Text style={styles.col9}>{dCourse?.name ?? "未割当"}</Text>
-                    <Text style={styles.col10}>{d.isUndelivered ? "○" : ""}</Text>
-                    <Text style={styles.col11}>{d.memo}</Text>
-                  </View>
-                );
-              })}
+            <View style={styles.headerRow}>
+              <Text style={styles.c_name}>届先名</Text>
+              <Text style={styles.c_pkg}>個口</Text>
+              <Text style={styles.c_weight}>実重量</Text>
+              <Text style={styles.c_volume}>容積</Text>
+              <Text style={styles.c_address}>届先住所</Text>
+              <Text style={styles.c_date}>納品日</Text>
+              <Text style={styles.c_slip}>伝票番号</Text>
+              <Text style={styles.c_ship}>出荷番号</Text>
+              <Text style={styles.c_course}>担当コース</Text>
+              <Text style={styles.c_undelivered}>未配</Text>
+              <Text style={styles.c_memo}>メモ</Text>
             </View>
+
+            {items.map((d) => {
+              const dCourse = courses.find((c) => c.id === d.courseId);
+              return (
+                <View key={d.id} style={styles.row}>
+                  <Text style={styles.c_name}>{d.destinationName}</Text>
+                  <Text style={styles.c_pkg}>{d.packageCount}</Text>
+                  <Text style={styles.c_weight}>{d.actualWeight}</Text>
+                  <Text style={styles.c_volume}>{d.volume}</Text>
+                  <Text style={styles.c_address}>{d.address}</Text>
+                  <Text style={styles.c_date}>{d.deliveryDate}</Text>
+                  <Text style={styles.c_slip}>{d.slipNumber}</Text>
+                  <Text style={styles.c_ship}>{d.shippingNumber}</Text>
+                  <Text style={styles.c_course}>{dCourse?.name ?? "未割当"}</Text>
+                  <Text style={styles.c_undelivered}>{d.isUndelivered ? "○" : ""}</Text>
+                  <Text style={styles.c_memo}>{d.memo}</Text>
+                </View>
+              );
+            })}
           </Page>
         );
       })}

@@ -15,6 +15,7 @@ import { CapacityWarningPanel } from "@/features/assignment/components/CapacityW
 import { RerunButton } from "@/features/assignment/components/RerunButton";
 import { usePdfGenerate } from "@/features/pdf/hooks/usePdfGenerate";
 import { MapDropzone, type MapDropzoneHandle } from "@/features/upload/components/MapDropzone";
+import { CourseLinkExporter } from "@/features/map/components/CourseLinkExporter";
 
 const DeliveryMap = dynamic(
   () => import("@/features/map/components/DeliveryMap").then((m) => ({ default: m.DeliveryMap })),
@@ -69,6 +70,7 @@ export default function MapPage() {
           <Link href="/settings">
             <Button variant="outline" size="sm">設定</Button>
           </Link>
+          <CourseLinkExporter />
           <Button variant="outline" size="sm" onClick={handleShare}>
             {shareUrl ? "コピーしました!" : (courseFilter ? "共有リンク生成（選択中）" : "共有リンク生成（全件）")}
           </Button>

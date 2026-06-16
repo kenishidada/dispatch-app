@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { VehicleSpecEditor } from "@/features/settings/components/VehicleSpecEditor";
-import { CourseEditor } from "@/features/settings/components/CourseEditor";
 import { AreaRuleEditor } from "@/features/settings/components/AreaRuleEditor";
 
 export default function SettingsPage() {
@@ -22,7 +21,6 @@ export default function SettingsPage() {
       </header>
       <main className="max-w-5xl mx-auto p-6 space-y-6">
         <VehicleSpecEditor />
-        <CourseEditor />
         <AreaRuleEditor />
       </main>
     </div>

@@ -1,15 +1,69 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useDeliveryStore } from "@/shared/store/deliveryStore";
 import { getTruckThreshold } from "@/lib/capacity";
+import type { Course } from "@/shared/types/delivery";
 
 type Props = {
   onConfirm: () => void;
 };
 
+const COLOR_PALETTE = [
+  "#34A853", "#4285F4", "#F9AB00", "#FF6D01", "#EA4335", "#A142F4",
+  "#00ACC1", "#7CB342", "#D81B60", "#5E35B1", "#F4511E", "#6D4C41",
+];
+
+// 指定台数を満たすようコースマスタを拡張（既存はそのまま、不足分のみ末尾に生成）
+function ensureMaster(existing: Course[], lightN: number, truckM: number): Course[] {
+  const result = [...existing];
+  const ensure = (vehicleType: "light" | "2t", count: number, prefix: string, label: string) => {
+    for (let i = 1; i <= count; i++) {
+      const id = `${prefix}-${i}`;
+      if (!result.some((c) => c.id === id)) {
+        result.push({
+          id,
+          name: `${label}${i}`,
+          vehicleType,
+          color: COLOR_PALETTE[result.length % COLOR_PALETTE.length],
+          defaultRegion: "",
+        });
+      }
+    }
+  };
+  ensure("light", lightN, "light", "軽");
+  ensure("2t", truckM, "truck", "2t");
+  return result;
+}
+
+function Stepper({ label, value, onChange }: { label: string; value: number; onChange: (n: number) => void }) {
+  return (
+    <div className="flex items-center gap-3">
+      <span className="w-24 font-medium">{label}</span>
+      <button
+        type="button"
+        className="w-8 h-8 border rounded text-lg leading-none disabled:opacity-40"
+        onClick={() => onChange(Math.max(0, value - 1))}
+        disabled={value <= 0}
+      >
+        −
+      </button>
+      <span className="w-10 text-center font-mono text-lg">{value}</span>
+      <button
+        type="button"
+        className="w-8 h-8 border rounded text-lg leading-none"
+        onClick={() => onChange(value + 1)}
+      >
+        ＋
+      </button>
+      <span className="text-sm text-gray-500">台</span>
+    </div>
+  );
+}
+
 export function CapacityInputDialog({ onConfirm }: Props) {
-  const { deliveries, courses, vehicleSpecs, activeCourseIds, setActiveCourseIds } = useDeliveryStore();
+  const { deliveries, courses, vehicleSpecs, activeCourseIds, setActiveCourseIds, setCourses } =
+    useDeliveryStore();
 
   const summary = useMemo(() => {
     const threshold = getTruckThreshold(vehicleSpecs);
@@ -20,28 +74,33 @@ export function CapacityInputDialog({ onConfirm }: Props) {
     return { totalVolume, totalWeight, truckCount, lightCount, threshold };
   }, [deliveries, vehicleSpecs]);
 
-  const [selected, setSelected] = useState<Set<string>>(() => {
-    const validPrior = activeCourseIds.filter((id) => courses.some((c) => c.id === id));
-    return new Set(validPrior.length > 0 ? validPrior : courses.map((c) => c.id));
-  });
+  // 初期台数: 現在の稼働コース数（無ければマスタの台数）
+  const initCounts = useMemo(() => {
+    const countActive = (vt: "light" | "2t") =>
+      activeCourseIds.length > 0
+        ? courses.filter((c) => c.vehicleType === vt && activeCourseIds.includes(c.id)).length
+        : courses.filter((c) => c.vehicleType === vt).length;
+    return { light: countActive("light"), truck: countActive("2t") };
+  }, [activeCourseIds, courses]);
 
-  const toggle = (id: string) => {
-    const next = new Set(selected);
-    if (next.has(id)) next.delete(id); else next.add(id);
-    setSelected(next);
-  };
+  const [lightN, setLightN] = useState(initCounts.light);
+  const [truckM, setTruckM] = useState(initCounts.truck);
 
-  const confirm = () => {
-    setActiveCourseIds(Array.from(selected));
-    onConfirm();
-  };
-
-  const activeLight = courses.filter((c) => c.vehicleType === "light" && selected.has(c.id)).length;
-  const activeTruck = courses.filter((c) => c.vehicleType === "2t" && selected.has(c.id)).length;
   const lightSpec = vehicleSpecs.find((s) => s.vehicleType === "light");
   const truckSpec = vehicleSpecs.find((s) => s.vehicleType === "2t");
-  const capacityOk =
-    activeLight * (lightSpec?.maxOrders ?? 0) + activeTruck * (truckSpec?.maxOrders ?? 0) >= deliveries.length;
+  const capacityTotal = lightN * (lightSpec?.maxOrders ?? 0) + truckM * (truckSpec?.maxOrders ?? 0);
+  const capacityOk = capacityTotal >= deliveries.length;
+
+  const confirm = () => {
+    const ensured = ensureMaster(courses, lightN, truckM);
+    if (ensured.length !== courses.length) setCourses(ensured);
+    const active = [
+      ...ensured.filter((c) => c.vehicleType === "light").slice(0, lightN).map((c) => c.id),
+      ...ensured.filter((c) => c.vehicleType === "2t").slice(0, truckM).map((c) => c.id),
+    ];
+    setActiveCourseIds(active);
+    onConfirm();
+  };
 
   return (
     <div className="space-y-4 p-4 border rounded">
@@ -52,27 +111,18 @@ export function CapacityInputDialog({ onConfirm }: Props) {
         <div>重量合計 <span className="font-mono">{summary.totalWeight}kg</span></div>
         <div>大口(≥{summary.threshold}L)/軽 <span className="font-mono">{summary.truckCount}/{summary.lightCount}</span></div>
       </div>
-      <div>
-        <h3 className="font-medium mb-2">稼働するコースを選択</h3>
-        <div className="grid grid-cols-3 gap-2">
-          {courses.map((c) => (
-            <label key={c.id} className="flex items-center gap-2 border rounded px-3 py-2">
-              <input type="checkbox" checked={selected.has(c.id)} onChange={() => toggle(c.id)} />
-              <span className="w-3 h-3 rounded-full" style={{ background: c.color }} />
-              <span>{c.name}</span>
-              <span className="text-xs text-gray-500">({c.vehicleType === "2t" ? "2t" : "軽"})</span>
-            </label>
-          ))}
-        </div>
+      <div className="space-y-2">
+        <Stepper label="軽自動車" value={lightN} onChange={setLightN} />
+        <Stepper label="2tトラック" value={truckM} onChange={setTruckM} />
       </div>
       <div className="text-sm">
-        容量目安: 軽{activeLight}台 × {lightSpec?.maxOrders}件 + 2t{activeTruck}台 × {truckSpec?.maxOrders}件 = {activeLight * (lightSpec?.maxOrders ?? 0) + activeTruck * (truckSpec?.maxOrders ?? 0)}件
+        容量目安: 軽{lightN}台 × {lightSpec?.maxOrders ?? 0}件 + 2t{truckM}台 × {truckSpec?.maxOrders ?? 0}件 = {capacityTotal}件
         {!capacityOk && <span className="text-red-600 ml-2">⚠ 件数上限合計が配送件数を下回っています</span>}
       </div>
       <button
         className="bg-blue-600 text-white rounded px-4 py-2 disabled:opacity-50"
         onClick={confirm}
-        disabled={selected.size === 0}
+        disabled={lightN + truckM === 0}
         type="button"
       >
         この構成で振り分け実行

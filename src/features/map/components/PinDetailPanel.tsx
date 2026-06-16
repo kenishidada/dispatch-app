@@ -14,6 +14,7 @@ export function PinDetailPanel() {
   const updateCourseAssignment = useDeliveryStore((s) => s.updateCourseAssignment);
   const toggleUndelivered = useDeliveryStore((s) => s.toggleUndelivered);
   const setMemo = useDeliveryStore((s) => s.setMemo);
+  const updateDelivery = useDeliveryStore((s) => s.updateDelivery);
 
   const delivery = deliveries.find((d) => d.id === selectedId);
 
@@ -28,13 +29,13 @@ export function PinDetailPanel() {
   const readOnlyFields = [
     { label: "届先名", value: delivery.destinationName },
     { label: "個口数", value: `${delivery.packageCount}` },
-    { label: "実重量", value: `${delivery.actualWeight} kg` },
-    { label: "容積", value: `${delivery.volume} L` },
     { label: "届先住所", value: delivery.address },
     { label: "納品日", value: delivery.deliveryDate },
     { label: "伝票番号", value: `${delivery.slipNumber}` },
     { label: "出荷番号", value: `${delivery.shippingNumber}` },
   ];
+
+  const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(delivery.address)}`;
 
   return (
     <div className="p-4 space-y-3">
@@ -47,6 +48,35 @@ export function PinDetailPanel() {
           <p className="text-sm">{field.value}</p>
         </div>
       ))}
+
+      <div>
+        <Label className="text-xs text-gray-500">実重量 (kg)</Label>
+        <Input
+          className="mt-1"
+          type="number"
+          value={delivery.actualWeight}
+          onChange={(e) => updateDelivery(delivery.id, { actualWeight: Number(e.target.value) })}
+        />
+      </div>
+
+      <div>
+        <Label className="text-xs text-gray-500">容積 (L)</Label>
+        <Input
+          className="mt-1"
+          type="number"
+          value={delivery.volume}
+          onChange={(e) => updateDelivery(delivery.id, { volume: Number(e.target.value) })}
+        />
+      </div>
+
+      <a
+        href={mapsUrl}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="block text-center text-sm text-blue-600 border border-blue-300 rounded px-3 py-1.5 hover:bg-blue-50"
+      >
+        Googleマップで見る
+      </a>
 
       <Separator />
 
