@@ -7,6 +7,16 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 
+function patchDelivery(deliveryId: string, changes: Record<string, unknown>) {
+  const sessionId = useDeliveryStore.getState().currentSessionId;
+  if (!sessionId) return;
+  fetch(`/api/sessions/${sessionId}/deliveries/${deliveryId}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(changes),
+  }).catch(() => {});
+}
+
 export function PinDetailPanel() {
   const selectedId = useDeliveryStore((s) => s.selectedDeliveryId);
   const deliveries = useDeliveryStore((s) => s.deliveries);
@@ -55,7 +65,11 @@ export function PinDetailPanel() {
           className="mt-1"
           type="number"
           value={delivery.actualWeight}
-          onChange={(e) => updateDelivery(delivery.id, { actualWeight: Number(e.target.value) })}
+          onChange={(e) => {
+            const v = Number(e.target.value);
+            updateDelivery(delivery.id, { actualWeight: v });
+            patchDelivery(delivery.id, { actualWeight: v });
+          }}
         />
       </div>
 
@@ -65,7 +79,11 @@ export function PinDetailPanel() {
           className="mt-1"
           type="number"
           value={delivery.volume}
-          onChange={(e) => updateDelivery(delivery.id, { volume: Number(e.target.value) })}
+          onChange={(e) => {
+            const v = Number(e.target.value);
+            updateDelivery(delivery.id, { volume: v });
+            patchDelivery(delivery.id, { volume: v });
+          }}
         />
       </div>
 
@@ -86,6 +104,8 @@ export function PinDetailPanel() {
           value={delivery.courseId ?? ""}
           onValueChange={(value: string | null) => {
             updateCourseAssignment(delivery.id, value ?? null);
+            const course = courses.find((c) => c.id === value);
+            patchDelivery(delivery.id, { courseId: value ?? null, colorCode: course?.color ?? null });
           }}
         >
           <SelectTrigger className="mt-1">
@@ -130,7 +150,10 @@ export function PinDetailPanel() {
         <Label className="text-xs text-gray-500">未配</Label>
         <Switch
           checked={delivery.isUndelivered}
-          onCheckedChange={() => toggleUndelivered(delivery.id)}
+          onCheckedChange={() => {
+            toggleUndelivered(delivery.id);
+            patchDelivery(delivery.id, { isUndelivered: !delivery.isUndelivered });
+          }}
         />
       </div>
 
@@ -139,7 +162,10 @@ export function PinDetailPanel() {
         <Input
           className="mt-1"
           value={delivery.memo}
-          onChange={(e) => setMemo(delivery.id, e.target.value)}
+          onChange={(e) => {
+            setMemo(delivery.id, e.target.value);
+            patchDelivery(delivery.id, { memo: e.target.value });
+          }}
           placeholder="メモを入力..."
         />
       </div>

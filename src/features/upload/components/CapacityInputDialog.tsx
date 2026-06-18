@@ -62,8 +62,10 @@ function Stepper({ label, value, onChange }: { label: string; value: number; onC
 }
 
 export function CapacityInputDialog({ onConfirm }: Props) {
-  const { deliveries, courses, vehicleSpecs, activeCourseIds, setActiveCourseIds, setCourses } =
-    useDeliveryStore();
+  const {
+    deliveries, courses, vehicleSpecs, activeCourseIds,
+    setActiveCourseIds, setCourses, currentSessionId,
+  } = useDeliveryStore();
 
   const summary = useMemo(() => {
     const threshold = getTruckThreshold(vehicleSpecs);
@@ -91,7 +93,7 @@ export function CapacityInputDialog({ onConfirm }: Props) {
   const capacityTotal = lightN * (lightSpec?.maxOrders ?? 0) + truckM * (truckSpec?.maxOrders ?? 0);
   const capacityOk = capacityTotal >= deliveries.length;
 
-  const confirm = () => {
+  const confirm = async () => {
     const ensured = ensureMaster(courses, lightN, truckM);
     if (ensured.length !== courses.length) setCourses(ensured);
     const active = [
@@ -99,6 +101,15 @@ export function CapacityInputDialog({ onConfirm }: Props) {
       ...ensured.filter((c) => c.vehicleType === "2t").slice(0, truckM).map((c) => c.id),
     ];
     setActiveCourseIds(active);
+
+    if (currentSessionId) {
+      await fetch(`/api/sessions/${currentSessionId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ activeCourseIds: active }),
+      });
+    }
+
     onConfirm();
   };
 

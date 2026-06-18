@@ -14,8 +14,9 @@ type Phase = "idle" | "preview";
 
 export function UploadDropzone() {
   const router = useRouter();
-  const { mergeDeliveries, setProcessing, clearProcessing, isProcessing, processingStep } =
-    useDeliveryStore();
+  const {
+    setDeliveries, setCurrentSessionId, setProcessing, clearProcessing, isProcessing, processingStep,
+  } = useDeliveryStore();
   const { runGeocoding, runAssign } = useAutoAssign();
   const [error, setError] = useState<string | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
@@ -39,28 +40,41 @@ export function UploadDropzone() {
         return;
       }
 
-      mergeDeliveries(result.deliveries);
-      useDeliveryStore.getState().setUploadedFileName(file.name);
+      setProcessing("DB保存中...");
+      try {
+        const res = await fetch("/api/sessions", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ deliveries: result.deliveries, fileName: file.name }),
+        });
+        if (!res.ok) throw new Error(`Session creation failed: ${res.status}`);
+        const data = await res.json();
+        setCurrentSessionId(data.sessionId);
+        setDeliveries(data.deliveries);
+        useDeliveryStore.getState().setUploadedFileName(file.name);
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "DB保存に失敗しました");
+        clearProcessing();
+        return;
+      }
+
       clearProcessing();
       setPhase("preview");
     },
-    [mergeDeliveries, setProcessing, clearProcessing]
+    [setDeliveries, setCurrentSessionId, setProcessing, clearProcessing]
   );
 
   const handleConfirm = useCallback(async () => {
     setError(null);
     try {
-      setProcessing("ジオコーディング中...");
-      const allDeliveries = useDeliveryStore.getState().deliveries;
-      await runGeocoding(allDeliveries);
-      setProcessing("振り分け実行中...");
+      await runGeocoding();
       await runAssign();
       router.push("/map");
     } catch (e) {
       clearProcessing();
       setError(e instanceof Error ? e.message : "振り分けに失敗しました");
     }
-  }, [runGeocoding, runAssign, router, setProcessing, clearProcessing]);
+  }, [runGeocoding, runAssign, router, clearProcessing]);
 
   const handleDrop = useCallback(
     (e: React.DragEvent) => {

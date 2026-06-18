@@ -14,7 +14,6 @@ type Props = {
 };
 
 export const MapDropzone = forwardRef<MapDropzoneHandle, Props>(function MapDropzone({ children }, ref) {
-  const mergeDeliveries = useDeliveryStore((s) => s.mergeDeliveries);
   const isProcessing = useDeliveryStore((s) => s.isProcessing);
   const processingStep = useDeliveryStore((s) => s.processingStep);
   const { runGeocoding, runAssign } = useAutoAssign();
@@ -39,19 +38,41 @@ export const MapDropzone = forwardRef<MapDropzoneHandle, Props>(function MapDrop
         return;
       }
 
-      mergeDeliveries(result.deliveries);
-      useDeliveryStore.getState().setUploadedFileName(file.name);
-      const allDeliveries = useDeliveryStore.getState().deliveries;
+      // 既存の未配アイテムを保持してマージ
+      const existing = useDeliveryStore.getState().deliveries;
+      const newSlipNumbers = new Set(result.deliveries.map((d) => d.slipNumber));
+      const keptUndelivered = existing.filter(
+        (d) => d.isUndelivered && !newSlipNumbers.has(d.slipNumber)
+      );
+      const merged = [...keptUndelivered, ...result.deliveries];
+
+      useDeliveryStore.getState().setProcessing("DB保存中...");
+      try {
+        const res = await fetch("/api/sessions", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ deliveries: merged, fileName: file.name }),
+        });
+        if (!res.ok) throw new Error(`Session creation failed: ${res.status}`);
+        const data = await res.json();
+        useDeliveryStore.getState().setCurrentSessionId(data.sessionId);
+        useDeliveryStore.getState().setDeliveries(data.deliveries);
+        useDeliveryStore.getState().setUploadedFileName(file.name);
+      } catch (e) {
+        useDeliveryStore.getState().clearProcessing();
+        setError(e instanceof Error ? e.message : "DB保存に失敗しました");
+        return;
+      }
 
       try {
-        await runGeocoding(allDeliveries);
+        await runGeocoding();
         await runAssign();
       } catch (e) {
         useDeliveryStore.getState().clearProcessing();
         setError(e instanceof Error ? e.message : "振り分けに失敗しました");
       }
     },
-    [mergeDeliveries, runGeocoding, runAssign]
+    [runGeocoding, runAssign]
   );
 
   const handleDrop = useCallback(

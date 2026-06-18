@@ -60,6 +60,7 @@ export function migrateStore(persistedState: unknown, version: number): unknown 
 }
 
 type DeliveryStore = {
+  currentSessionId: string | null;
   deliveries: Delivery[];
   courses: Course[];
   vehicleSpecs: VehicleSpec[];
@@ -76,6 +77,7 @@ type DeliveryStore = {
   isProcessing: boolean;
   processingStep: string;
 
+  setCurrentSessionId: (id: string | null) => void;
   setDeliveries: (deliveries: Delivery[]) => void;
   mergeDeliveries: (newData: Delivery[]) => void;
   updateDelivery: (id: string, updates: Partial<Delivery>) => void;
@@ -108,6 +110,7 @@ type DeliveryStore = {
 export const useDeliveryStore = create<DeliveryStore>()(
   persist(
     (set, get) => ({
+      currentSessionId: null,
       deliveries: [],
       courses: DEFAULT_COURSES,
       vehicleSpecs: DEFAULT_VEHICLE_SPECS,
@@ -124,6 +127,7 @@ export const useDeliveryStore = create<DeliveryStore>()(
       isProcessing: false,
       processingStep: "",
 
+      setCurrentSessionId: (id) => set({ currentSessionId: id }),
       setDeliveries: (deliveries) => set({ deliveries }),
       mergeDeliveries: (newData) => {
         const existing = get().deliveries;
@@ -208,6 +212,7 @@ export const useDeliveryStore = create<DeliveryStore>()(
       name: "delivery-store",
       version: 3,
       partialize: (state) => ({
+        currentSessionId: state.currentSessionId,
         courses: state.courses,
         areaDescription: state.areaDescription,
         activeCourseIds: state.activeCourseIds,

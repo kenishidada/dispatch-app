@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -27,9 +27,30 @@ export default function MapPage() {
   const isProcessing = useDeliveryStore((s) => s.isProcessing);
   const uploadedFileName = useDeliveryStore((s) => s.uploadedFileName);
   const courseFilter = useDeliveryStore((s) => s.courseFilter);
+  const currentSessionId = useDeliveryStore((s) => s.currentSessionId);
   const { generatePdf } = usePdfGenerate();
   const [shareUrl, setShareUrl] = useState<string | null>(null);
   const dropzoneRef = useRef<MapDropzoneHandle>(null);
+
+  useEffect(() => {
+    if (!currentSessionId || deliveries.length > 0) return;
+    (async () => {
+      try {
+        const res = await fetch(`/api/sessions/${currentSessionId}`);
+        if (!res.ok) return;
+        const data = await res.json();
+        useDeliveryStore.getState().setDeliveries(data.deliveries);
+        if (data.session.fileName) {
+          useDeliveryStore.getState().setUploadedFileName(data.session.fileName);
+        }
+        if (data.session.activeCourseIds?.length > 0) {
+          useDeliveryStore.getState().setActiveCourseIds(data.session.activeCourseIds);
+        }
+      } catch {
+        // session fetch failed silently
+      }
+    })();
+  }, [currentSessionId, deliveries.length]);
 
   const handleShare = async () => {
     const currentFilter = useDeliveryStore.getState().courseFilter;

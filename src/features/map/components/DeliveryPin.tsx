@@ -67,6 +67,14 @@ export function DeliveryPin({ delivery }: Props) {
     if (!marker) return;
     const pos = marker.getLatLng();
     updateDelivery(delivery.id, { lat: pos.lat, lng: pos.lng });
+    const sessionId = useDeliveryStore.getState().currentSessionId;
+    if (sessionId) {
+      fetch(`/api/sessions/${sessionId}/deliveries/${delivery.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ lat: pos.lat, lng: pos.lng }),
+      }).catch(() => {});
+    }
   };
 
   return (
@@ -90,7 +98,17 @@ export function DeliveryPin({ delivery }: Props) {
             <select
               value={delivery.courseId ?? ""}
               onChange={(e) => {
-                updateCourseAssignment(delivery.id, e.target.value || null);
+                const val = e.target.value || null;
+                updateCourseAssignment(delivery.id, val);
+                const sessionId = useDeliveryStore.getState().currentSessionId;
+                if (sessionId) {
+                  const course = courses.find((c) => c.id === val);
+                  fetch(`/api/sessions/${sessionId}/deliveries/${delivery.id}`, {
+                    method: "PATCH",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ courseId: val, colorCode: course?.color ?? null }),
+                  }).catch(() => {});
+                }
               }}
               className="w-full text-sm border rounded px-2 py-1 bg-white"
             >
