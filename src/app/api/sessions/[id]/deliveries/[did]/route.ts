@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createAdminClient } from "@/lib/supabase/admin";
-import { TENANT_ID, clientPartialToDb } from "@/lib/supabase/mappers";
+import { createClient } from "@/lib/supabase/server";
+import { clientPartialToDb } from "@/lib/supabase/mappers";
 import type { Delivery } from "@/shared/types/delivery";
 
 type RouteParams = { params: Promise<{ id: string; did: string }> };
@@ -14,14 +14,13 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     return NextResponse.json({ error: "no fields to update" }, { status: 400 });
   }
 
-  const supabase = createAdminClient();
+  const supabase = await createClient();
 
   const { data, error } = await supabase
     .from("deliveries")
     .update(dbChanges)
     .eq("id", did)
     .eq("session_id", sessionId)
-    .eq("tenant_id", TENANT_ID)
     .select("id")
     .single();
 

@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { autoAssign } from "@/lib/gemini";
 import { Course, VehicleSpec } from "@/shared/types/delivery";
+import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
-  TENANT_ID,
   dbDeliveryToClient,
   dbSlipToClient,
   type DbDeliveryRow,
@@ -13,11 +13,11 @@ import {
 const BUCKET = "area-images";
 
 async function fetchAreaImagesAsBase64(): Promise<string[]> {
+  // Storage access uses admin client (no per-user storage RLS needed)
   const supabase = createAdminClient();
   const { data: rows } = await supabase
     .from("area_images")
-    .select("storage_path")
-    .eq("tenant_id", TENANT_ID)
+    .select("storage_path, sort_order")
     .order("sort_order");
 
   if (!rows || rows.length === 0) return [];
@@ -46,13 +46,12 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "sessionId and courses are required" }, { status: 400 });
   }
 
-  const supabase = createAdminClient();
+  const supabase = await createClient();
 
   const { data: session } = await supabase
     .from("dispatch_sessions")
     .select("active_course_ids")
     .eq("id", sessionId)
-    .eq("tenant_id", TENANT_ID)
     .single();
 
   if (!session) {
@@ -64,8 +63,7 @@ export async function POST(request: NextRequest) {
   const { data: dbDeliveries } = await supabase
     .from("deliveries")
     .select("*")
-    .eq("session_id", sessionId)
-    .eq("tenant_id", TENANT_ID);
+    .eq("session_id", sessionId);
 
   const deliveryIds = (dbDeliveries ?? []).map((d: DbDeliveryRow) => d.id);
   const slipsByDelivery = new Map<string, DbSlipRow[]>();
@@ -88,8 +86,7 @@ export async function POST(request: NextRequest) {
 
   const { data: vehicleSpecRows } = await supabase
     .from("vehicle_specs")
-    .select("vehicle_type, max_volume, max_weight, max_orders")
-    .eq("tenant_id", TENANT_ID);
+    .select("vehicle_type, max_volume, max_weight, max_orders");
 
   const vehicleSpecs: VehicleSpec[] = (vehicleSpecRows ?? []).map((r) => ({
     vehicleType: r.vehicle_type as "light" | "2t",
@@ -101,7 +98,6 @@ export async function POST(request: NextRequest) {
   const { data: areaRuleRows } = await supabase
     .from("area_rules")
     .select("id, region, course_id")
-    .eq("tenant_id", TENANT_ID)
     .order("sort_order");
 
   const areaRules = (areaRuleRows ?? []).map((r) => ({
@@ -112,7 +108,6 @@ export async function POST(request: NextRequest) {
 
   const areaImages = await fetchAreaImagesAsBase64();
 
-  // autoAssignには未割当状態で渡す（再実行時に前回結果が影響しない）
   const cleanDeliveries = deliveries.map((d) => ({
     ...d, courseId: null, colorCode: null, assignReason: "", unassignedReason: "",
   }));
@@ -122,12 +117,10 @@ export async function POST(request: NextRequest) {
     areaRules, areaImages, areaDescription || "", null
   );
 
-  // 先に全件クリアしてから新しい割当を書き込む
   await supabase
     .from("deliveries")
     .update({ course_id: null, color_code: null, assign_reason: "", unassigned_reason: "" })
-    .eq("session_id", sessionId)
-    .eq("tenant_id", TENANT_ID);
+    .eq("session_id", sessionId);
 
   for (const a of output.assignments) {
     const course = a.courseId ? courses.find((c: Course) => c.id === a.courseId) : null;

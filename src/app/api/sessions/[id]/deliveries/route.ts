@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createAdminClient } from "@/lib/supabase/admin";
-import { TENANT_ID, clientPartialToDb } from "@/lib/supabase/mappers";
+import { createClient } from "@/lib/supabase/server";
+import { clientPartialToDb } from "@/lib/supabase/mappers";
 import type { Delivery } from "@/shared/types/delivery";
 
 type RouteParams = { params: Promise<{ id: string }> };
@@ -16,7 +16,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     return NextResponse.json({ error: "updates is required" }, { status: 400 });
   }
 
-  const supabase = createAdminClient();
+  const supabase = await createClient();
   let updatedCount = 0;
 
   for (const { id, changes } of updates) {
@@ -27,8 +27,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       .from("deliveries")
       .update(dbChanges)
       .eq("id", id)
-      .eq("session_id", sessionId)
-      .eq("tenant_id", TENANT_ID);
+      .eq("session_id", sessionId);
 
     if (!error) updatedCount++;
   }

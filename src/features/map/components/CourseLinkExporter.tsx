@@ -18,29 +18,33 @@ export function CourseLinkExporter() {
 
   const generate = async () => {
     setLoading(true);
-    const { deliveries, courses } = useDeliveryStore.getState();
+    const { deliveries, courses, currentSessionId } = useDeliveryStore.getState();
 
-    const grouped = new Map<string, typeof deliveries>();
+    if (!currentSessionId) {
+      setLoading(false);
+      return;
+    }
+
+    const grouped = new Map<string, number>();
     for (const d of deliveries) {
       if (!d.courseId) continue;
-      if (!grouped.has(d.courseId)) grouped.set(d.courseId, []);
-      grouped.get(d.courseId)!.push(d);
+      grouped.set(d.courseId, (grouped.get(d.courseId) ?? 0) + 1);
     }
 
     const results: CourseLink[] = [];
-    for (const [courseId, items] of grouped) {
+    for (const [courseId, count] of grouped) {
       const course = courses.find((c) => c.id === courseId);
       if (!course) continue;
       const res = await fetch("/api/share", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ deliveries: items, courses }),
+        body: JSON.stringify({ sessionId: currentSessionId, courseId, courses }),
       });
       const data = await res.json();
       results.push({
         courseId,
         courseName: course.name,
-        count: items.length,
+        count,
         url: `${window.location.origin}/view/${data.sessionId}`,
         copied: false,
       });

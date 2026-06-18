@@ -16,6 +16,7 @@ import { RerunButton } from "@/features/assignment/components/RerunButton";
 import { usePdfGenerate } from "@/features/pdf/hooks/usePdfGenerate";
 import { MapDropzone, type MapDropzoneHandle } from "@/features/upload/components/MapDropzone";
 import { CourseLinkExporter } from "@/features/map/components/CourseLinkExporter";
+import { SignOutButton } from "@/features/auth/components/SignOutButton";
 
 const DeliveryMap = dynamic(
   () => import("@/features/map/components/DeliveryMap").then((m) => ({ default: m.DeliveryMap })),
@@ -53,20 +54,17 @@ export default function MapPage() {
   }, [currentSessionId, deliveries.length]);
 
   const handleShare = async () => {
-    const currentFilter = useDeliveryStore.getState().courseFilter;
-    let shareDeliveries = deliveries;
-
-    if (currentFilter !== null) {
-      shareDeliveries = deliveries.filter((d) => {
-        if (currentFilter.has("__unassigned__") && d.courseId == null) return true;
-        return d.courseId != null && currentFilter.has(d.courseId);
-      });
-    }
+    if (!currentSessionId) return;
+    const state = useDeliveryStore.getState();
 
     const res = await fetch("/api/share", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ deliveries: shareDeliveries, courses: useDeliveryStore.getState().courses }),
+      body: JSON.stringify({
+        sessionId: currentSessionId,
+        courseId: null,
+        courses: state.courses,
+      }),
     });
     const data = await res.json();
     const url = `${window.location.origin}/view/${data.sessionId}`;
@@ -98,6 +96,7 @@ export default function MapPage() {
           <Button size="sm" onClick={generatePdf}>
             {courseFilter ? "PDF出力（選択中）" : "PDF出力（全件）"}
           </Button>
+          <SignOutButton />
         </div>
       </header>
 

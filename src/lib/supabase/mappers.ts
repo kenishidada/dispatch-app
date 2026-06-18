@@ -1,7 +1,5 @@
 import type { Delivery, SlipDetail, GeoCodeStatus } from "@/shared/types/delivery";
 
-export const TENANT_ID = "00000000-0000-4000-8000-000000000001";
-
 // ---- DB row types ----
 
 export type DbDeliveryRow = {
@@ -105,10 +103,8 @@ export function dbDeliveryToClient(row: DbDeliveryRow, slips: SlipDetail[]): Del
 export function clientDeliveryToDbInsert(
   d: Delivery,
   sessionId: string,
-  tenantId: string,
 ) {
   return {
-    tenant_id: tenantId,
     session_id: sessionId,
     factory_name: d.factoryName,
     carrier_code: d.carrierCode,
@@ -143,10 +139,8 @@ export function clientDeliveryToDbInsert(
 export function clientSlipToDbInsert(
   s: SlipDetail,
   deliveryId: string,
-  tenantId: string,
 ) {
   return {
-    tenant_id: tenantId,
     delivery_id: deliveryId,
     slip_number: s.slipNumber,
     shipping_number: s.shippingNumber,

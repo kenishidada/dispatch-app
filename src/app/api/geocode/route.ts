@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { geocodeBatch } from "@/lib/geocoding";
-import { createAdminClient } from "@/lib/supabase/admin";
-import { TENANT_ID } from "@/lib/supabase/mappers";
+import { createClient } from "@/lib/supabase/server";
 
 export async function POST(request: NextRequest) {
   const body = await request.json();
@@ -11,13 +10,12 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "sessionId is required" }, { status: 400 });
   }
 
-  const supabase = createAdminClient();
+  const supabase = await createClient();
 
   const { data: pending, error } = await supabase
     .from("deliveries")
     .select("id, address")
     .eq("session_id", sessionId)
-    .eq("tenant_id", TENANT_ID)
     .eq("geocode_status", "pending")
     .neq("address", "");
 

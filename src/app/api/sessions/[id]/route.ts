@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { createClient } from "@/lib/supabase/server";
 import {
-  TENANT_ID,
   dbDeliveryToClient,
   dbSlipToClient,
   type DbDeliveryRow,
@@ -12,13 +11,12 @@ type RouteParams = { params: Promise<{ id: string }> };
 
 export async function GET(_request: NextRequest, { params }: RouteParams) {
   const { id } = await params;
-  const supabase = createAdminClient();
+  const supabase = await createClient();
 
   const { data: session, error: sessionErr } = await supabase
     .from("dispatch_sessions")
     .select("*")
     .eq("id", id)
-    .eq("tenant_id", TENANT_ID)
     .single();
 
   if (sessionErr || !session) {
@@ -28,11 +26,10 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
   const { data: dbDeliveries } = await supabase
     .from("deliveries")
     .select("*")
-    .eq("session_id", id)
-    .eq("tenant_id", TENANT_ID);
+    .eq("session_id", id);
 
   const deliveryIds = (dbDeliveries ?? []).map((d: DbDeliveryRow) => d.id);
-  let slipsByDelivery = new Map<string, DbSlipRow[]>();
+  const slipsByDelivery = new Map<string, DbSlipRow[]>();
 
   if (deliveryIds.length > 0) {
     const { data: slips } = await supabase
@@ -68,7 +65,7 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
 export async function PATCH(request: NextRequest, { params }: RouteParams) {
   const { id } = await params;
   const body = await request.json();
-  const supabase = createAdminClient();
+  const supabase = await createClient();
 
   const updates: Record<string, unknown> = {};
   if (body.activeCourseIds !== undefined) updates.active_course_ids = body.activeCourseIds;
@@ -81,8 +78,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
   const { error } = await supabase
     .from("dispatch_sessions")
     .update(updates)
-    .eq("id", id)
-    .eq("tenant_id", TENANT_ID);
+    .eq("id", id);
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });

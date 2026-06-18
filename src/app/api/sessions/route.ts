@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { createClient } from "@/lib/supabase/server";
 import {
-  TENANT_ID,
   clientDeliveryToDbInsert,
   clientSlipToDbInsert,
   dbDeliveryToClient,
@@ -23,12 +22,11 @@ export async function POST(request: NextRequest) {
   }
 
   const deliveryDate = deliveries[0].deliveryDate || new Date().toISOString().slice(0, 10);
-  const supabase = createAdminClient();
+  const supabase = await createClient();
 
   const { data: session, error: sessionErr } = await supabase
     .from("dispatch_sessions")
     .insert({
-      tenant_id: TENANT_ID,
       delivery_date: deliveryDate,
       file_name: fileName || "",
       status: "draft",
@@ -42,7 +40,7 @@ export async function POST(request: NextRequest) {
 
   const sessionId = session.id;
 
-  const dbRows = deliveries.map((d) => clientDeliveryToDbInsert(d, sessionId, TENANT_ID));
+  const dbRows = deliveries.map((d) => clientDeliveryToDbInsert(d, sessionId));
   const { data: insertedDeliveries, error: delErr } = await supabase
     .from("deliveries")
     .insert(dbRows)
@@ -58,7 +56,7 @@ export async function POST(request: NextRequest) {
     const clientDelivery = deliveries[i];
     if (clientDelivery.slips) {
       for (const slip of clientDelivery.slips) {
-        slipRows.push(clientSlipToDbInsert(slip, dbDelivery.id, TENANT_ID));
+        slipRows.push(clientSlipToDbInsert(slip, dbDelivery.id));
       }
     }
   }
@@ -91,12 +89,11 @@ export async function POST(request: NextRequest) {
 }
 
 export async function GET() {
-  const supabase = createAdminClient();
+  const supabase = await createClient();
 
   const { data, error } = await supabase
     .from("dispatch_sessions")
     .select("id, delivery_date, file_name, status, active_course_ids, created_at, deliveries(count)")
-    .eq("tenant_id", TENANT_ID)
     .order("created_at", { ascending: false });
 
   if (error) {

@@ -1,14 +1,11 @@
 import { NextResponse } from "next/server";
-import { createAdminClient } from "@/lib/supabase/admin";
-
-const TENANT_ID = "00000000-0000-4000-8000-000000000001";
+import { createClient } from "@/lib/supabase/server";
 
 export async function GET() {
-  const supabase = createAdminClient();
+  const supabase = await createClient();
   const { data, error } = await supabase
     .from("area_rules")
     .select("id, region, course_id, sort_order")
-    .eq("tenant_id", TENANT_ID)
     .order("sort_order");
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
@@ -23,14 +20,12 @@ export async function GET() {
 
 export async function POST(request: Request) {
   const rules: Array<{ id?: string; region: string; courseId: string }> = await request.json();
-  const supabase = createAdminClient();
+  const supabase = await createClient();
 
-  // 全削除 → 再挿入（ルール数が少ないため単純な置き換え）
-  await supabase.from("area_rules").delete().eq("tenant_id", TENANT_ID);
+  await supabase.from("area_rules").delete().gte("sort_order", 0);
 
   if (rules.length > 0) {
     const rows = rules.map((r, i) => ({
-      tenant_id: TENANT_ID,
       region: r.region,
       course_id: r.courseId,
       sort_order: i,

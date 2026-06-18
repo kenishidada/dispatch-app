@@ -1,14 +1,11 @@
 import { NextResponse } from "next/server";
-import { createAdminClient } from "@/lib/supabase/admin";
-
-const TENANT_ID = "00000000-0000-4000-8000-000000000001";
+import { createClient } from "@/lib/supabase/server";
 
 export async function GET() {
-  const supabase = createAdminClient();
+  const supabase = await createClient();
   const { data, error } = await supabase
     .from("vehicle_specs")
-    .select("vehicle_type, max_volume, max_weight, max_orders")
-    .eq("tenant_id", TENANT_ID);
+    .select("vehicle_type, max_volume, max_weight, max_orders");
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
@@ -25,9 +22,8 @@ export async function POST(request: Request) {
   const specs: Array<{ vehicleType: string; maxVolume: number; maxWeight: number; maxOrders: number }> =
     await request.json();
 
-  const supabase = createAdminClient();
+  const supabase = await createClient();
   const rows = specs.map((s) => ({
-    tenant_id: TENANT_ID,
     vehicle_type: s.vehicleType,
     max_volume: s.maxVolume,
     max_weight: s.maxWeight,
