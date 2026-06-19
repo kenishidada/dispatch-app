@@ -3,6 +3,24 @@ import * as XLSX from "xlsx";
 import { Delivery, SlipDetail } from "@/shared/types/delivery";
 import { normalizeAddress } from "@/lib/address";
 
+function toDateString(value: unknown): string {
+  if (value instanceof Date && !isNaN(value.getTime())) {
+    return value.toISOString().slice(0, 10);
+  }
+  if (typeof value === "number") {
+    const d = new Date(Math.round((value - 25569) * 86400000));
+    if (!isNaN(d.getTime()) && d.getFullYear() >= 2000) {
+      return d.toISOString().slice(0, 10);
+    }
+  }
+  const s = String(value ?? "");
+  const parsed = new Date(s);
+  if (!isNaN(parsed.getTime()) && parsed.getFullYear() >= 2000) {
+    return parsed.toISOString().slice(0, 10);
+  }
+  return s;
+}
+
 type ParseResult = {
   success: true;
   deliveries: Delivery[];
@@ -24,7 +42,7 @@ export function parseExcelFile(file: File): Promise<ParseResult> {
     reader.onload = (e) => {
       try {
         const data = new Uint8Array(e.target?.result as ArrayBuffer);
-        const workbook = XLSX.read(data, { type: "array" });
+        const workbook = XLSX.read(data, { type: "array", cellDates: true });
 
         const sheetName = workbook.SheetNames[0];
         if (!sheetName) {
@@ -96,7 +114,7 @@ export function parseExcelFile(file: File): Promise<ParseResult> {
             addressCode: Number(rep["住所コード"] ?? 0),
             address: normalizedAddr,
             rawAddress: group.rawAddr,
-            deliveryDate: String(rep["納品日"] ?? ""),
+            deliveryDate: toDateString(rep["納品日"]),
             slipNumber: Number(rep["伝票番号"] ?? 0),
             shippingNumber: Number(rep["出荷番号"] ?? 0),
             shippingCategory: String(rep["運送区分"] ?? ""),

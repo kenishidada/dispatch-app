@@ -22,7 +22,11 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "deliveries is required" }, { status: 400 });
   }
 
-  const deliveryDate = deliveries[0].deliveryDate || new Date().toISOString().slice(0, 10);
+  const rawDate = deliveries[0].deliveryDate;
+  const parsedDate = new Date(rawDate);
+  const deliveryDate = (!isNaN(parsedDate.getTime()) && parsedDate.getFullYear() >= 2000)
+    ? parsedDate.toISOString().slice(0, 10)
+    : new Date().toISOString().slice(0, 10);
   const supabase = await createClient();
 
   const { data: { user } } = await supabase.auth.getUser();
