@@ -11,6 +11,7 @@ import {
 import type { Delivery } from "@/shared/types/delivery";
 
 export async function POST(request: NextRequest) {
+  try {
   const body = await request.json();
   const { deliveries, fileName } = body as {
     deliveries: Delivery[];
@@ -24,6 +25,9 @@ export async function POST(request: NextRequest) {
   const deliveryDate = deliveries[0].deliveryDate || new Date().toISOString().slice(0, 10);
   const supabase = await createClient();
 
+  const { data: { user } } = await supabase.auth.getUser();
+  console.log("[sessions POST] user:", user?.id, "tenant:", user?.app_metadata?.tenant_id);
+
   const { data: session, error: sessionErr } = await supabase
     .from("dispatch_sessions")
     .insert({
@@ -35,6 +39,7 @@ export async function POST(request: NextRequest) {
     .single();
 
   if (sessionErr || !session) {
+    console.error("[sessions POST] insert error:", sessionErr);
     return NextResponse.json({ error: sessionErr?.message ?? "session insert failed" }, { status: 500 });
   }
 
@@ -86,6 +91,10 @@ export async function POST(request: NextRequest) {
   });
 
   return NextResponse.json({ sessionId, deliveries: resultDeliveries });
+  } catch (e) {
+    console.error("[sessions POST] unhandled:", e);
+    return NextResponse.json({ error: String(e) }, { status: 500 });
+  }
 }
 
 export async function GET() {
