@@ -18,7 +18,7 @@ function toDateString(value: unknown): string {
   if (!isNaN(parsed.getTime()) && parsed.getFullYear() >= 2000) {
     return parsed.toISOString().slice(0, 10);
   }
-  return s;
+  return new Date().toISOString().slice(0, 10);
 }
 
 type ParseResult = {
