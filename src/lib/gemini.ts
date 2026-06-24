@@ -4,7 +4,7 @@ import {
   AssignmentLogEntry, CapacityWarning,
 } from "@/shared/types/delivery";
 import { dbscan } from "@/lib/clustering";
-import { getTruckThreshold, checkCapacity } from "@/lib/capacity";
+import { getTruckThreshold, checkCapacity, redistributeOverflow, computeLoads, type CourseLoad } from "@/lib/capacity";
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
 
@@ -73,11 +73,13 @@ type AssignBatchInput = {
   areaRules: AreaRule[];
   areaDescription: string;
   clusterMap: Map<string, number>;
+  totalItemCount: number;
+  cumulativeLoads?: Map<string, CourseLoad>;
 };
 
 async function callAssignBatch(input: AssignBatchInput): Promise<AssignmentResult[]> {
   const model = genAI.getGenerativeModel({ model: "gemini-3.1-flash-lite-preview" });
-  const { deliveries, candidateCourses, vehicleType, vehicleSpec, threshold, areaRules, areaDescription, clusterMap } = input;
+  const { deliveries, candidateCourses, vehicleType, vehicleSpec, threshold, areaRules, areaDescription, clusterMap, totalItemCount, cumulativeLoads } = input;
   const validIds = new Set(candidateCourses.map((c) => c.id));
   const courseDescriptions = candidateCourses
     .map((c) => `- ${c.id} (${c.name}): 担当エリア「${c.defaultRegion || "未設定"}」`)
@@ -94,6 +96,19 @@ async function callAssignBatch(input: AssignBatchInput): Promise<AssignmentResul
     lng: d.lng,
     clusterId: clusterMap.get(d.id) ?? -1,
   }));
+
+  const targetPerCourse = Math.ceil(totalItemCount / candidateCourses.length);
+
+  let cumulativeText = "";
+  if (cumulativeLoads && cumulativeLoads.size > 0) {
+    const lines = candidateCourses.map((c) => {
+      const l = cumulativeLoads.get(c.id);
+      if (!l || l.count === 0) return `- ${c.id}: 0件, 0L, 0kg（残り: ${vehicleSpec.maxOrders}件, ${vehicleSpec.maxVolume}L, ${vehicleSpec.maxWeight}kg）`;
+      return `- ${c.id}: ${l.count}件, ${l.volume}L, ${l.weight}kg（残り: ${vehicleSpec.maxOrders - l.count}件, ${vehicleSpec.maxVolume - l.volume}L, ${vehicleSpec.maxWeight - l.weight}kg）`;
+    });
+    cumulativeText = `\n【前バッチまでの割当状況 — 残り容量内で割り当てること】\n${lines.join("\n")}\n`;
+  }
+
   const prompt = `あなたは配送ルート振り分けの専門家です。以下の${vehicleType === "2t" ? `大口（容積${threshold}L以上）` : "通常"}荷物を、稼働中の${vehicleType === "2t" ? "2tコース" : "軽コース"}に割り当ててください。
 
 【稼働中のコース】
@@ -101,12 +116,13 @@ ${courseDescriptions}
 
 【車両スペック】
 ${vehicleType === "2t" ? "2tトラック" : "軽自動車"}: 1台あたり容積上限 ${vehicleSpec.maxVolume}L、重量上限 ${vehicleSpec.maxWeight}kg、件数上限 ${vehicleSpec.maxOrders}件
-${areaDescription ? `\n【エリア設定】\n${areaDescription}\n` : ""}${rulesText}
+${areaDescription ? `\n【エリア設定】\n${areaDescription}\n` : ""}${rulesText}${cumulativeText}
 
-【判断手順】
-1. 同じ clusterId の荷物は地理的に近接している。可能な限り同じコースに割り当てる
-2. 各コースの容積/重量/件数の上限を超えないよう調整
-3. エリアルールに該当しない、またはどのコースに振るべきか判断できない荷物は courseId="" で返し、unassignedReason に "<理由>" を書く
+【判断手順 — 重要度順】
+1. 【最重要】各コースの件数・容積・重量の上限を**絶対に超えない**。全${totalItemCount}件を${candidateCourses.length}台で分担するため、1台あたり約${targetPerCourse}件を目標に均等配分する。
+2. 同じ clusterId の荷物は地理的に近接しているため、容量に余裕がある範囲で同じコースにまとめる（ただし容量制約が最優先）。
+3. エリアルールがある場合は参考にする。
+4. どのコースにも収まらない荷物は courseId="" で返し、unassignedReason に理由を書く。
 
 【荷物リスト】
 ${JSON.stringify(items)}
@@ -276,6 +292,7 @@ export async function autoAssign(
       areaRules,
       areaDescription: effectiveDescription,
       clusterMap: truckClusters,
+      totalItemCount: truckCandidates.length,
     });
     allAssignments.push(...res);
     const assigned = res.filter((r) => r.courseId).length;
@@ -294,6 +311,9 @@ export async function autoAssign(
     const t0 = Date.now();
     let batches = 0;
     const lightBatchResults: AssignmentResult[] = [];
+    const cumulativeLoads = new Map<string, CourseLoad>();
+    for (const c of lightCourses) cumulativeLoads.set(c.id, { count: 0, volume: 0, weight: 0 });
+
     for (let i = 0; i < lightCandidates.length; i += BATCH_SIZE) {
       const batch = lightCandidates.slice(i, i + BATCH_SIZE);
       const res = await callAssignBatch({
@@ -305,9 +325,24 @@ export async function autoAssign(
         areaRules,
         areaDescription: effectiveDescription,
         clusterMap: lightClusters,
+        totalItemCount: lightCandidates.length,
+        cumulativeLoads: batches > 0 ? cumulativeLoads : undefined,
       });
       lightBatchResults.push(...res);
       batches++;
+
+      const deliveryMap = new Map(batch.map((d) => [d.id, d]));
+      for (const a of res) {
+        if (!a.courseId) continue;
+        const d = deliveryMap.get(a.deliveryId);
+        if (!d) continue;
+        const l = cumulativeLoads.get(a.courseId);
+        if (l) {
+          l.count++;
+          l.volume += d.volume;
+          l.weight += d.actualWeight;
+        }
+      }
     }
     allAssignments.push(...lightBatchResults);
     const assigned = lightBatchResults.filter((r) => r.courseId).length;
@@ -326,9 +361,27 @@ export async function autoAssign(
     deliveryId: d.id, courseId: null, reason: "", unassignedReason: "ジオコーディング失敗",
   }));
 
-  // 段階5: 容量チェック
+  // 段階5: 容量超過の再配分
+  const preWarnings = checkCapacity(allAssignments, deliveries, courses, vehicleSpecs, activeCourseIds);
+  if (preWarnings.length > 0) {
+    const redistributed = redistributeOverflow(allAssignments, deliveries, courses, vehicleSpecs, activeCourseIds);
+    let movedCount = 0;
+    for (let i = 0; i < allAssignments.length; i++) {
+      if (allAssignments[i].courseId !== redistributed[i].courseId) {
+        allAssignments[i].courseId = redistributed[i].courseId;
+        allAssignments[i].reason = `容量調整で再配分`;
+        movedCount++;
+      }
+    }
+    appendLog(log, 5, "容量再配分", `超過警告 ${preWarnings.length}件を検知 → ${movedCount}件を再配分`);
+  } else {
+    appendLog(log, 5, "容量チェック", "上限超過なし");
+  }
+
   const warnings = checkCapacity(allAssignments, deliveries, courses, vehicleSpecs, activeCourseIds);
-  appendLog(log, 5, "容量チェック", warnings.length === 0 ? "上限超過なし" : `警告 ${warnings.length}件: ${warnings.map((w) => w.message).join(", ")}`);
+  if (warnings.length > 0) {
+    appendLog(log, 5, "残超過", warnings.map((w) => w.message).join(", "));
+  }
 
   // 段階6: 地理整合性レビュー
   const t0 = Date.now();
